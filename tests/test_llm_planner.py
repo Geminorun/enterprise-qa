@@ -10,9 +10,11 @@ class FakeTransport:
     def __init__(self, response: str):
         self.response = response
         self.calls = 0
+        self.payloads = []
 
     def post_json(self, url, headers, payload, timeout):
         self.calls += 1
+        self.payloads.append(payload)
         return {"choices": [{"message": {"content": self.response}}]}
 
 
@@ -45,7 +47,7 @@ def test_llm_client_uses_first_available_provider():
     transport = FakeTransport('{"source_type":"kb","template":"kb_search","params":{"query":"年假"},"output_mode":"summary"}')
     client = LlmClient(
         [
-            LlmProviderConfig("deepseek", "key", "https://api.deepseek.com", "deepseek-chat"),
+            LlmProviderConfig("deepseek", "key", "https://api.deepseek.com", "deepseek-v4-flash"),
         ],
         timeout_seconds=5,
         transport=transport,
@@ -55,3 +57,34 @@ def test_llm_client_uses_first_available_provider():
 
     assert '"kb_search"' in content
     assert transport.calls == 1
+
+
+def test_llm_client_disables_deepseek_thinking_by_default():
+    transport = FakeTransport('{"source_type":"kb","template":"kb_search","params":{"query":"年假"},"output_mode":"summary"}')
+    client = LlmClient(
+        [
+            LlmProviderConfig("deepseek", "key", "https://api.deepseek.com", "deepseek-v4-flash"),
+        ],
+        timeout_seconds=5,
+        transport=transport,
+    )
+
+    client.chat([{"role": "user", "content": "年假怎么计算"}])
+
+    assert transport.payloads[0]["thinking"] == {"type": "disabled"}
+
+
+def test_llm_client_sends_siliconflow_thinking_switch():
+    transport = FakeTransport('{"source_type":"kb","template":"kb_search","params":{"query":"年假"},"output_mode":"summary"}')
+    client = LlmClient(
+        [
+            LlmProviderConfig("siliconflow", "key", "https://api.siliconflow.cn/v1", "deepseek-ai/DeepSeek-V4-Flash"),
+        ],
+        timeout_seconds=5,
+        thinking_enabled=True,
+        transport=transport,
+    )
+
+    client.chat([{"role": "user", "content": "年假怎么计算"}])
+
+    assert transport.payloads[0]["enable_thinking"] is True

@@ -21,18 +21,20 @@ git clone $env:ENTERPRISE_QA_REPO_URL $env:USERPROFILE\.claude\skills\enterprise
 ```bash
 export DEEPSEEK_API_KEY="..."
 export SILICONFLOW_API_KEY="..."
+export ENTERPRISE_QA_THINKING_ENABLED="false"
 ```
 
 也可以复制 `config.yaml.example` 为本地 `config.yaml` 后调整路径和 provider 配置。`config.yaml` 可能包含密钥，已被 `.gitignore` 忽略，不应提交。
+`llm.thinking_enabled` 默认为 `false`，用于让 DeepSeek/SiliconFlow 在普通企业问答中优先走非 thinking 模式。
 
 默认数据文件已经包含在 `data/` 下。
 
 ## 运行
 
 ```bash
-python scripts/cli.py "张三的部门是什么？"
-python scripts/cli.py "年假怎么计算？"
-python scripts/cli.py "王五符合 P5 晋升 P6 条件吗？"
+python -X utf8 scripts/cli.py "张三的部门是什么？"
+python -X utf8 scripts/cli.py "年假怎么计算？"
+python -X utf8 scripts/cli.py "王五符合 P5 晋升 P6 条件吗？"
 ```
 
 ## 自测
@@ -47,11 +49,11 @@ python -m pytest -q
 以下命令需要先按上文配置至少一个 LLM provider。
 
 ```bash
-python scripts/cli.py "张三的部门是什么？"
-python scripts/cli.py "年假怎么计算？"
-python scripts/cli.py "张三负责哪些项目？"
-python scripts/cli.py "王五符合 P5 晋升 P6 条件吗？"
-python scripts/cli.py "查一下 EMP-999"
+python -X utf8 scripts/cli.py "张三的部门是什么？"
+python -X utf8 scripts/cli.py "年假怎么计算？"
+python -X utf8 scripts/cli.py "张三负责哪些项目？"
+python -X utf8 scripts/cli.py "王五符合 P5 晋升 P6 条件吗？"
+python -X utf8 scripts/cli.py "查一下 EMP-999"
 ```
 
 输出应包含自然语言答案和 `> 来源：...`。

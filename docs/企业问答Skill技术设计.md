@@ -131,15 +131,17 @@ knowledge_base:
 
 llm:
   timeout_seconds: 20
+  answer_polish: true
+  thinking_enabled: false
   providers:
     - name: deepseek
       api_key: ${DEEPSEEK_API_KEY}
       base_url: https://api.deepseek.com
-      model: deepseek-chat
+      model: deepseek-v4-flash
     - name: siliconflow
       api_key: ${SILICONFLOW_API_KEY}
       base_url: https://api.siliconflow.cn/v1
-      model: deepseek-ai/DeepSeek-V3
+      model: deepseek-ai/DeepSeek-V4-Flash
 
 timezone: Asia/Shanghai
 current_date: 2026-03-27
@@ -150,6 +152,7 @@ Provider 行为：
 - 按配置顺序依次尝试 providers。
 - 如果某个 provider 缺少 API key，则跳过。
 - 遇到超时、网络错误、限流或 provider 返回无效响应时触发 fallback。
+- `thinking_enabled` 控制 DeepSeek/SiliconFlow 请求是否启用 thinking；默认关闭以降低简单查询延迟。
 - 测试中 mock LLM client，不需要真实 API key。
 
 ## 6. QueryPlan 模型

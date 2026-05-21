@@ -23,6 +23,7 @@ class AppConfig:
     timezone: str
     timeout_seconds: int
     answer_polish: bool
+    thinking_enabled: bool
     providers: list[LlmProviderConfig]
 
 
@@ -104,13 +105,13 @@ def _default_providers() -> list[LlmProviderConfig]:
             name="deepseek",
             api_key=os.getenv("DEEPSEEK_API_KEY", ""),
             base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-            model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+            model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
         ),
         LlmProviderConfig(
             name="siliconflow",
             api_key=os.getenv("SILICONFLOW_API_KEY", ""),
             base_url=os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1"),
-            model=os.getenv("SILICONFLOW_MODEL", "deepseek-ai/DeepSeek-V3"),
+            model=os.getenv("SILICONFLOW_MODEL", "deepseek-ai/DeepSeek-V4-Flash"),
         ),
     ]
 
@@ -156,5 +157,6 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         timezone=os.getenv("ENTERPRISE_QA_TIMEZONE", str(yaml_config.get("timezone", "Asia/Shanghai"))),
         timeout_seconds=int(os.getenv("ENTERPRISE_QA_LLM_TIMEOUT", str(yaml_llm.get("timeout_seconds", "20")))),
         answer_polish=_env_bool("ENTERPRISE_QA_ANSWER_POLISH", bool(yaml_llm.get("answer_polish", True))),
+        thinking_enabled=_env_bool("ENTERPRISE_QA_THINKING_ENABLED", bool(yaml_llm.get("thinking_enabled", False))),
         providers=providers,
     )

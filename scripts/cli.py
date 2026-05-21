@@ -75,7 +75,11 @@ def answer_question(
     context = load_context(context_path)
     llm_client = polish_client
     if planner is None:
-        llm_client = LlmClient(config.providers, timeout_seconds=config.timeout_seconds)
+        llm_client = LlmClient(
+            config.providers,
+            timeout_seconds=config.timeout_seconds,
+            thinking_enabled=config.thinking_enabled,
+        )
         planner = lambda user_question, ctx: plan_question(llm_client, user_question, ctx)
 
     try:

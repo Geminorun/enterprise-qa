@@ -42,10 +42,12 @@ class LlmClient:
         providers: list[LlmProviderConfig],
         *,
         timeout_seconds: int,
+        thinking_enabled: bool = False,
         transport: HttpTransport | None = None,
     ) -> None:
         self.providers = providers
         self.timeout_seconds = timeout_seconds
+        self.thinking_enabled = thinking_enabled
         self.transport = transport or UrllibTransport()
 
     def chat(self, messages: list[dict[str, str]]) -> str:
@@ -56,6 +58,10 @@ class LlmClient:
 
             url = provider.base_url.rstrip("/") + "/chat/completions"
             payload = {"model": provider.model, "messages": messages, "temperature": 0.1}
+            if _is_deepseek_provider(provider):
+                payload["thinking"] = {"type": "enabled" if self.thinking_enabled else "disabled"}
+            elif _is_siliconflow_provider(provider):
+                payload["enable_thinking"] = self.thinking_enabled
             headers = {"Authorization": f"Bearer {provider.api_key}", "Content-Type": "application/json"}
             try:
                 data = self.transport.post_json(url, headers, payload, self.timeout_seconds)
@@ -64,3 +70,11 @@ class LlmClient:
                 errors.append(f"{provider.name}: {exc}")
 
         raise LlmError("所有 LLM providers 均失败：" + "; ".join(errors))
+
+
+def _is_deepseek_provider(provider: LlmProviderConfig) -> bool:
+    return provider.name.lower() == "deepseek" or "api.deepseek.com" in provider.base_url.lower()
+
+
+def _is_siliconflow_provider(provider: LlmProviderConfig) -> bool:
+    return provider.name.lower() == "siliconflow" or "siliconflow" in provider.base_url.lower()
