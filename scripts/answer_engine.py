@@ -42,6 +42,14 @@ def format_fallback_answer(question: str, plan: QueryPlan, evidences: list[Evide
         data = evidences[0].data
         return f"查询时间范围内，匹配的考勤记录共有 {data['count']} 次。\n\n> 来源：{_sources(evidences)}"
 
+    if plan.template == "employee_projects":
+        lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data['role']}" for item in evidences]
+        return "相关项目如下：\n" + "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
+
+    if plan.template == "kb_search":
+        lines = [item.content for item in evidences]
+        return "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
+
     lines = [evidence.content for evidence in evidences]
     return "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
 

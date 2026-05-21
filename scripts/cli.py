@@ -26,7 +26,9 @@ def _execute_plan(plan: QueryPlan, db_path: Path, kb_path: Path) -> list[Evidenc
     if plan.source_type == "hybrid" and plan.template == "promotion_eligibility":
         return execute_db_plan(db_path, plan) + search_knowledge(kb_path, "P5 晋升 P6 条件")
     if plan.source_type == "hybrid" and plan.template == "recent_events":
-        return search_knowledge(kb_path, "最近 会议 项目")
+        kb = search_knowledge(kb_path, str(plan.params.get("query", "最近 会议 项目")))
+        projects = execute_db_plan(db_path, QueryPlan("db", "department_projects", {"department": "研发部", "status": "active"}))
+        return kb + projects
     return execute_db_plan(db_path, plan)
 
 
