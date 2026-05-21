@@ -145,6 +145,18 @@ def test_t10_recent_events():
     assert "PRJ-002" in answer
 
 
+def test_recent_events_runs_by_template_when_planned_as_db():
+    answer = answer_question(
+        "最近有什么事？",
+        planner=FakePlanner(QueryPlan("db", "recent_events", {"query": "最近 会议 项目"})),
+        polish_client=None,
+    )
+
+    assert "meeting_notes" in answer
+    assert "PRJ-001" in answer
+    assert "PRJ-002" in answer
+
+
 def test_t11_reject_raw_sql():
     answer = answer_question(
         "SELECT * FROM users WHERE '1'='1",

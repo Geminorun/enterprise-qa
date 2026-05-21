@@ -31,7 +31,7 @@ def _execute_plan(plan: QueryPlan, db_path: Path, kb_path: Path) -> list[Evidenc
         from_level = str(plan.params.get("from_level", "P5"))
         to_level = str(plan.params.get("to_level", "P6"))
         return execute_db_plan(db_path, plan) + search_knowledge(kb_path, f"{from_level} 晋升 {to_level} 条件")
-    if plan.source_type == "hybrid" and plan.template == "recent_events":
+    if plan.template == "recent_events":
         meeting_notes_path = kb_path / "meeting_notes"
         notes_root = meeting_notes_path if meeting_notes_path.exists() else kb_path
         kb = search_knowledge(notes_root, str(plan.params.get("query", "最近 会议 项目")))

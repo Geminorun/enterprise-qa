@@ -77,6 +77,19 @@ def test_rejects_project_members_without_project_locator():
         validate_plan(plan)
 
 
+def test_accepts_department_projects_without_department():
+    plan = QueryPlan(
+        source_type="db",
+        template="department_projects",
+        params={"status": ["active", "planning"]},
+        output_mode="list",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.params["status"] == ["active", "planning"]
+
+
 def test_accepts_promotion_eligibility_with_employee_id():
     plan = QueryPlan(
         source_type="db",

@@ -50,7 +50,6 @@ REQUIRED_ANY_PARAMS: dict[str, tuple[str, ...]] = {
     "performance_summary": ("employee_name", "employee_id"),
     "promotion_eligibility": ("employee_name", "employee_id"),
     "department_performance_summary": ("employee_name", "department"),
-    "department_projects": ("department",),
     "project_members": ("project_id", "project_name"),
 }
 
