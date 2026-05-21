@@ -32,8 +32,24 @@ def _execute_plan(plan: QueryPlan, db_path: Path, kb_path: Path) -> list[Evidenc
         to_level = str(plan.params.get("to_level", "P6"))
         return execute_db_plan(db_path, plan) + search_knowledge(kb_path, f"{from_level} 晋升 {to_level} 条件")
     if plan.source_type == "hybrid" and plan.template == "recent_events":
-        kb = search_knowledge(kb_path, str(plan.params.get("query", "最近 会议 项目")))
-        projects = execute_db_plan(db_path, QueryPlan("db", "department_projects", {"department": "研发部", "status": "active"}))
+        meeting_notes_path = kb_path / "meeting_notes"
+        notes_root = meeting_notes_path if meeting_notes_path.exists() else kb_path
+        kb = search_knowledge(notes_root, str(plan.params.get("query", "最近 会议 项目")))
+        if notes_root != kb_path:
+            kb = [
+                Evidence(
+                    kind=item.kind,
+                    source=f"meeting_notes/{item.source}",
+                    locator=f"meeting_notes/{item.locator}" if item.locator else None,
+                    content=item.content,
+                    data=item.data,
+                )
+                for item in kb
+            ]
+        project_params: dict[str, object] = {"status": plan.params.get("status", ["active", "planning"])}
+        if "department" in plan.params:
+            project_params["department"] = plan.params["department"]
+        projects = execute_db_plan(db_path, QueryPlan("db", "department_projects", project_params))
         return kb + projects
     return execute_db_plan(db_path, plan)
 

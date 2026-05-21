@@ -22,7 +22,7 @@ SAFE_TEMPLATES: dict[str, set[str]] = {
     "department_performance_summary": {"employee_name", "department", "year", "scope"},
     "promotion_eligibility": {"employee_name", "employee_id", "from_level", "to_level"},
     "kb_search": {"query", "topic"},
-    "recent_events": {"query", "date_range"},
+    "recent_events": {"query", "date_range", "department", "status"},
     "unknown": {"reason"},
 }
 
@@ -55,6 +55,28 @@ REQUIRED_ANY_PARAMS: dict[str, tuple[str, ...]] = {
 }
 
 EMPLOYEE_FIELDS = {"department", "email", "level", "hire_date", "status", "name"}
+QUARTER_ALIASES = {
+    "q1": 1,
+    "1": 1,
+    "第一季度": 1,
+    "一季度": 1,
+    "第1季度": 1,
+    "q2": 2,
+    "2": 2,
+    "第二季度": 2,
+    "二季度": 2,
+    "第2季度": 2,
+    "q3": 3,
+    "3": 3,
+    "第三季度": 3,
+    "三季度": 3,
+    "第3季度": 3,
+    "q4": 4,
+    "4": 4,
+    "第四季度": 4,
+    "四季度": 4,
+    "第4季度": 4,
+}
 UNSAFE_PATTERN = re.compile(
     r"\b(select|insert|update|delete|drop|alter|create|pragma|union)\b|--|;|'='|'1'='1",
     re.IGNORECASE,
@@ -69,6 +91,30 @@ def _contains_unsafe_value(value: Any) -> bool:
     if isinstance(value, (list, tuple)):
         return any(_contains_unsafe_value(item) for item in value)
     return False
+
+
+def _normalize_quarter(value: Any) -> int:
+    if isinstance(value, int):
+        quarter = value
+    elif isinstance(value, str):
+        key = value.strip().lower().replace(" ", "")
+        quarter = QUARTER_ALIASES.get(key)
+        if quarter is None:
+            match = re.fullmatch(r"q?([1-4])", key)
+            quarter = int(match.group(1)) if match else None
+    else:
+        quarter = None
+
+    if quarter not in {1, 2, 3, 4}:
+        raise PlanValidationError(f"不支持的季度：{value}")
+    return quarter
+
+
+def _normalize_params(plan: QueryPlan) -> dict[str, Any]:
+    params = dict(plan.params)
+    if plan.template == "performance_summary" and "quarter" in params:
+        params["quarter"] = _normalize_quarter(params["quarter"])
+    return params
 
 
 def validate_plan(plan: QueryPlan) -> QueryPlan:
@@ -94,9 +140,20 @@ def validate_plan(plan: QueryPlan) -> QueryPlan:
     if _contains_unsafe_value(plan.params):
         raise PlanValidationError("疑似不安全输入，已拒绝执行")
 
+    params = _normalize_params(plan)
+
     if plan.template == "employee_basic":
-        field = plan.params.get("field")
+        field = params.get("field")
         if field not in EMPLOYEE_FIELDS:
             raise PlanValidationError(f"不支持的员工字段：{field}")
 
+    if params != plan.params:
+        return QueryPlan(
+            source_type=plan.source_type,
+            template=plan.template,
+            params=params,
+            output_mode=plan.output_mode,
+            needs_clarification=plan.needs_clarification,
+            clarification_question=plan.clarification_question,
+        )
     return plan

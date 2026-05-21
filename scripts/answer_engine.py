@@ -134,10 +134,10 @@ def _format_promotion_answer(plan: QueryPlan, evidences: list[Evidence], current
 
     project_count = int(projects.get("project_count") or 0)
     if project_count >= 3:
-        checks.append(f"- 项目经验：满足，项目参与数为 {project_count}，规则要求主导或核心参与≥3 个。")
+        checks.append(f"- 项目经验：满足，主导/核心参与数为 {project_count}，规则要求主导或核心参与≥3 个。")
     else:
-        failures.append("项目经验不足 3 个")
-        checks.append(f"- 项目经验：不满足，项目参与数为 {project_count}，规则要求主导或核心参与≥3 个。")
+        failures.append("主导/核心参与项目不足 3 个")
+        checks.append(f"- 项目经验：不满足，主导/核心参与数为 {project_count}，规则要求主导或核心参与≥3 个。")
 
     unknowns.append("当前数据源未提供 P0/P1 事故记录")
     checks.append("- 事故记录：待确认，当前数据源未提供 P0/P1 事故记录。")

@@ -197,7 +197,7 @@ LLM prompt 包含：
 | `employee_manager` | DB | 查询员工直属上级，并解析为员工姓名 |
 | `department_members` | DB | 按部门统计或列出在职员工 |
 | `employee_projects` | DB | 查询员工参与的项目及角色 |
-| `department_projects` | DB | 查询某部门员工参与的项目，可按状态过滤 |
+| `department_projects` | DB | 查询某部门或全量员工参与的项目，可按状态过滤 |
 | `project_members` | DB | 查询某项目成员 |
 | `attendance_stats` | DB | 按员工和时间范围统计考勤 |
 | `performance_summary` | DB | 按年份或季度查询员工绩效 |
@@ -216,6 +216,7 @@ LLM prompt 包含：
 - 模板必须在白名单内。
 - 必填参数必须存在。
 - 参数类型必须匹配模板 schema。
+- `performance_summary.quarter` 会把 `Q1`、`Q2`、`第一季度`、`第二季度` 等表达归一化为 `1-4`，非法季度会被拒绝。
 - 日期范围必须有效且有边界。
 - 字段名必须来自白名单。
 - 不直接暴露 `manager_id` 等原始敏感字段；上级类答案需要解析成人名。
@@ -283,6 +284,27 @@ ORDER BY p.project_id
 ```
 
 代码不会把用户输入拼接进 SQL。
+
+### `department_projects`
+
+输入选项：
+
+```json
+{
+  "department": "研发部",
+  "status": "active"
+}
+```
+
+或：
+
+```json
+{
+  "status": ["active", "planning"]
+}
+```
+
+当未提供 `department` 时，查询所有在职员工参与的项目；`recent_events` 默认使用 `active/planning` 状态集合，避免把“最近有什么事”固定到单一部门。
 
 ### `department_performance_summary`
 

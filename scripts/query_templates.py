@@ -142,20 +142,31 @@ def _employee_projects(conn: sqlite3.Connection, plan: QueryPlan) -> list[Eviden
 
 
 def _department_projects(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
-    department = str(plan.params.get("department", ""))
+    department = plan.params.get("department")
     status = plan.params.get("status")
-    status_clause = "AND p.status = ?" if status else ""
-    args: tuple[Any, ...] = (department, status) if status else (department,)
+    filters = ["e.status = 'active'"]
+    args: list[Any] = []
+    if department:
+        filters.append("e.department = ?")
+        args.append(str(department))
+    if status:
+        if isinstance(status, (list, tuple, set)):
+            statuses = [str(item) for item in status]
+        else:
+            statuses = [str(status)]
+        placeholders = ", ".join("?" for _ in statuses)
+        filters.append(f"p.status IN ({placeholders})")
+        args.extend(statuses)
     rows = conn.execute(
         f"""
         SELECT DISTINCT p.project_id, p.name, p.status
         FROM employees e
         JOIN project_members pm ON pm.employee_id = e.employee_id
         JOIN projects p ON p.project_id = pm.project_id
-        WHERE e.department = ? AND e.status = 'active' {status_clause}
+        WHERE {" AND ".join(filters)}
         ORDER BY p.project_id
         """,
-        args,
+        tuple(args),
     ).fetchall()
     return [
         Evidence(
@@ -337,7 +348,7 @@ def _promotion_facts(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence
         SELECT p.project_id, p.name, p.status, pm.role, pm.join_date
         FROM project_members pm
         JOIN projects p ON p.project_id = pm.project_id
-        WHERE pm.employee_id = ?
+        WHERE pm.employee_id = ? AND pm.role IN ('lead', 'core')
         ORDER BY p.project_id
         """,
         (employee["employee_id"],),
@@ -360,7 +371,7 @@ def _promotion_facts(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence
         Evidence(
             kind="db",
             source="project_members 表",
-            content=f"{employee['name']} 项目数 {len(project_rows)}",
+            content=f"{employee['name']} 主导/核心参与项目数 {len(project_rows)}",
             locator=f"employee_id: {employee['employee_id']}",
             data={"project_count": len(project_rows), "projects": [dict(row) for row in project_rows]},
         ),

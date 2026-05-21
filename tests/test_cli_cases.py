@@ -140,7 +140,9 @@ def test_t10_recent_events():
     )
 
     assert "会议" in answer or "项目" in answer
+    assert "meeting_notes" in answer
     assert "PRJ-001" in answer
+    assert "PRJ-002" in answer
 
 
 def test_t11_reject_raw_sql():

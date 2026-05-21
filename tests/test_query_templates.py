@@ -77,6 +77,17 @@ def test_promotion_facts_include_review_details():
     assert [item["quarter"] for item in combined["performance_reviews 表"]["reviews"]] == [1, 2, 3, 4]
 
 
+def test_promotion_facts_count_only_lead_or_core_projects():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "钱七", "from_level": "P5", "to_level": "P6"}),
+    )
+    combined = {item.source: item.data for item in evidence}
+
+    assert combined["project_members 表"]["project_count"] == 0
+    assert all(item["role"] in {"lead", "core"} for item in combined["project_members 表"]["projects"])
+
+
 def test_performance_summary_filters_by_quarter():
     evidence = execute_db_plan(
         DB_PATH,
@@ -85,3 +96,10 @@ def test_performance_summary_filters_by_quarter():
 
     assert [item.data["quarter"] for item in evidence] == [2]
     assert evidence[0].data["kpi_score"] == 92
+
+
+def test_department_projects_can_return_active_and_planning_projects_without_department():
+    evidence = execute_db_plan(DB_PATH, QueryPlan("db", "department_projects", {"status": ["active", "planning"]}))
+    project_ids = {item.data["project_id"] for item in evidence}
+
+    assert project_ids == {"PRJ-001", "PRJ-002", "PRJ-003"}

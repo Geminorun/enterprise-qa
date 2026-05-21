@@ -88,3 +88,28 @@ def test_accepts_promotion_eligibility_with_employee_id():
     validated = validate_plan(plan)
 
     assert validated.params["employee_id"] == "EMP-003"
+
+
+def test_normalizes_performance_summary_quarter_text():
+    plan = QueryPlan(
+        source_type="db",
+        template="performance_summary",
+        params={"employee_name": "张三", "year": 2025, "quarter": "Q2"},
+        output_mode="summary",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.params["quarter"] == 2
+
+
+def test_rejects_invalid_performance_summary_quarter():
+    plan = QueryPlan(
+        source_type="db",
+        template="performance_summary",
+        params={"employee_name": "张三", "year": 2025, "quarter": "Q5"},
+        output_mode="summary",
+    )
+
+    with pytest.raises(PlanValidationError, match="不支持的季度"):
+        validate_plan(plan)
