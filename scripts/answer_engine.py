@@ -176,6 +176,11 @@ def _format_department_performance(evidences: list[Evidence]) -> str:
     )
 
 
+def _employee_status_label(status: object) -> str:
+    labels = {"active": "在职", "resigned": "离职"}
+    return labels.get(str(status), str(status))
+
+
 def format_fallback_answer(
     question: str,
     plan: QueryPlan,
@@ -198,7 +203,8 @@ def format_fallback_answer(
     if plan.template == "department_members":
         data = evidences[0].data
         names = "、".join(item["name"] for item in data.get("members", []))
-        return f"{data['department']}有 {data['count']} 名在职员工：{names}。\n\n> 来源：{_sources(evidences)}"
+        label = _employee_status_label(data.get("status", "active"))
+        return f"{data['department']}有 {data['count']} 名{label}员工：{names}。\n\n> 来源：{_sources(evidences)}"
 
     if plan.template == "attendance_stats":
         data = evidences[0].data

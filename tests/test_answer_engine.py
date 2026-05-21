@@ -98,6 +98,24 @@ def test_department_performance_answer_includes_aggregate_metrics():
     assert "个人绩效记录汇总" in answer
 
 
+def test_department_members_answer_uses_resigned_status_label():
+    plan = QueryPlan("db", "department_members", {"department": "研发部", "status": "resigned"})
+    evidence = [
+        Evidence(
+            "db",
+            "employees 表",
+            "研发部 resigned 员工 1 人",
+            "department: 研发部, status: resigned",
+            {"department": "研发部", "status": "resigned", "count": 1, "members": [{"name": "离职员工"}]},
+        )
+    ]
+
+    answer = format_fallback_answer("研发部有哪些离职员工？", plan, evidence)
+
+    assert "研发部有 1 名离职员工：离职员工" in answer
+    assert "在职员工" not in answer
+
+
 def test_build_answer_appends_verified_sources_after_polish():
     plan = QueryPlan("db", "performance_summary", {"employee_name": "张三", "year": 2025, "quarter": 2})
     evidence = [

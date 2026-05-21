@@ -168,6 +168,29 @@ def test_department_projects_normalizes_paused_status():
     assert "官网改版" in answer
 
 
+def test_employee_projects_filters_active_status():
+    answer = answer_question(
+        "张三有哪些在研项目？",
+        planner=FakePlanner(QueryPlan("db", "employee_projects", {"employee_name": "张三", "status": "在研"})),
+        polish_client=None,
+    )
+
+    assert "PRJ-001" in answer
+    assert "PRJ-003" in answer
+    assert "PRJ-002" not in answer
+    assert "PRJ-004" not in answer
+
+
+def test_department_members_filters_resigned_status():
+    answer = answer_question(
+        "研发部有哪些离职员工？",
+        planner=FakePlanner(QueryPlan("db", "department_members", {"department": "研发部", "status": "离职"})),
+        polish_client=None,
+    )
+
+    assert "离职员工" in answer
+
+
 def test_t11_reject_raw_sql():
     answer = answer_question(
         "SELECT * FROM users WHERE '1'='1",

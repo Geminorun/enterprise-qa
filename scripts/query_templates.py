@@ -96,38 +96,42 @@ def _employee_manager(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidenc
 
 def _department_members(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
     department = str(plan.params["department"])
+    status = str(plan.params.get("status", "active"))
     rows = conn.execute(
         """
         SELECT employee_id, name, department, level
         FROM employees
-        WHERE department = ? AND status = 'active'
+        WHERE department = ? AND status = ?
         ORDER BY employee_id
         """,
-        (department,),
+        (department, status),
     ).fetchall()
     return [
         Evidence(
             kind="db",
             source="employees 表",
-            locator=f"department: {department}",
-            content=f"{department} 在职员工 {len(rows)} 人",
-            data={"department": department, "count": len(rows), "members": [dict(row) for row in rows]},
+            locator=f"department: {department}, status: {status}",
+            content=f"{department} {status} 员工 {len(rows)} 人",
+            data={"department": department, "status": status, "count": len(rows), "members": [dict(row) for row in rows]},
         )
     ]
 
 
 def _employee_projects(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
     condition, value = _employee_filter(plan.params)
+    status = plan.params.get("status")
+    status_clause = "AND p.status = ?" if status else ""
+    args: tuple[Any, ...] = (value, status) if status else (value,)
     rows = conn.execute(
         f"""
         SELECT e.employee_id, e.name AS employee_name, p.project_id, p.name, p.status, pm.role, pm.join_date
         FROM employees e
         JOIN project_members pm ON pm.employee_id = e.employee_id
         JOIN projects p ON p.project_id = pm.project_id
-        WHERE {condition} AND e.status = 'active'
+        WHERE {condition} AND e.status = 'active' {status_clause}
         ORDER BY p.project_id
         """,
-        (value,),
+        args,
     ).fetchall()
     return [
         Evidence(
