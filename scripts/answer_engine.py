@@ -96,7 +96,7 @@ def _format_meeting_notes_answer(evidences: list[Evidence]) -> str:
     return "会议纪要要点：\n" + "\n".join(f"- {item}" for item in summaries) + f"\n\n{_source_block(evidences)}"
 
 
-def _format_recent_events(evidences: list[Evidence]) -> str:
+def _format_recent_events(question: str, evidences: list[Evidence]) -> str:
     meeting_evidences = [
         item for item in evidences if "meeting_notes/" in item.source or "meeting_notes/" in str(item.locator)
     ]
@@ -108,7 +108,8 @@ def _format_recent_events(evidences: list[Evidence]) -> str:
         meeting_answer = _format_meeting_notes_answer(meeting_evidences).split("> 来源：", 1)[0].strip()
         sections.append(meeting_answer)
     if project_evidences:
-        lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data.get('status', '未知状态')}" for item in project_evidences]
+        reason_lines = _project_missing_reason_lines(project_evidences) if _asks_reason(question) else []
+        lines = reason_lines or [f"- {item.data['project_id']} {item.data['name']}：{item.data.get('status', '未知状态')}" for item in project_evidences]
         sections.append("相关项目：\n" + "\n".join(lines))
     if not sections:
         sections = [item.content for item in evidences]
@@ -238,6 +239,12 @@ def _promotion_checks(
 
     if (from_level, to_level) == ("P4", "P5"):
         low_grades = [item.get("grade") for item in review_rows if item.get("grade") in {"C", "D"}]
+        if not review_rows:
+            performance_status = "待确认"
+            performance_detail = "当前数据源没有连续季度绩效记录。"
+        else:
+            performance_status = "满足" if _has_consecutive_grade(review_rows, "B", 2) and not low_grades else "不满足"
+            performance_detail = "绩效记录未出现 C/D。" if not low_grades else f"存在 {', '.join(str(item) for item in low_grades)} 评价。"
         return [
             (
                 "工作年限",
@@ -248,8 +255,8 @@ def _promotion_checks(
             (
                 "绩效要求",
                 "连续 2 季度≥B 且无 C/D 评价",
-                "满足" if _has_consecutive_grade(review_rows, "B", 2) and not low_grades else "不满足",
-                "绩效记录未出现 C/D。" if not low_grades else f"存在 {', '.join(str(item) for item in low_grades)} 评价。",
+                performance_status,
+                performance_detail,
             ),
             ("学习任务", "完成导师指定任务", "待确认", "当前数据源未提供导师学习任务完成情况。"),
         ]
@@ -456,16 +463,24 @@ def _format_leave_entitlement_check(evidences: list[Evidence], current_date: str
     )
 
 
+def _asks_reason(question: str) -> bool:
+    return any(word in question for word in ("为什么", "原因", "为何", "why"))
+
+
+def _project_missing_reason_lines(evidences: list[Evidence]) -> list[str]:
+    return [
+        f"- {item.data.get('project_id')} {item.data.get('name') or item.data.get('project_name')} 当前状态为 {item.data.get('status')}，"
+        "当前数据源未提供暂停原因，因此不能确认为什么暂停。"
+        for item in evidences
+        if item.data.get("status") == "on_hold"
+    ]
+
+
 def _format_project_collection(question: str, plan: QueryPlan, evidences: list[Evidence]) -> str:
     if not evidences:
         return "我没有在当前数据源中找到相关项目信息，因此不能确认答案。"
-    asks_reason = any(word in question for word in ("为什么", "原因")) or "PRJ-" in question
-    if asks_reason and any(item.data.get("status") == "on_hold" for item in evidences):
-        lines = [
-            f"{item.data.get('project_id')} {item.data.get('name')} 当前状态为 {item.data.get('status')}，"
-            "当前数据源未提供暂停原因，因此不能确认为什么暂停。"
-            for item in evidences
-        ]
+    if _asks_reason(question) and any(item.data.get("status") == "on_hold" for item in evidences):
+        lines = _project_missing_reason_lines(evidences)
         return "\n".join(lines) + f"\n\n{_source_block(evidences)}"
 
     if plan.output_mode == "count":
@@ -531,7 +546,7 @@ def format_fallback_answer(
         return _format_performance_summary(plan, evidences)
 
     if plan.template == "recent_events":
-        return _format_recent_events(evidences)
+        return _format_recent_events(question, evidences)
 
     if plan.template in {"employee_projects", "department_projects", "project_members"}:
         return _format_project_collection(question, plan, evidences)

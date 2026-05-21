@@ -383,6 +383,19 @@ def test_promotion_without_levels_infers_next_level_rules():
     assert "P5 → P6" not in answer
 
 
+def test_promotion_without_performance_records_is_pending_not_failure():
+    answer = answer_question(
+        "吴十符合晋升条件吗？",
+        planner=FakePlanner(QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "吴十"})),
+        polish_client=None,
+    )
+
+    assert "P4 晋升 P5" in answer
+    assert "绩效要求：待确认" in answer
+    assert "当前数据源没有连续季度绩效记录" in answer
+    assert "绩效要求不满足" not in answer
+
+
 def test_promotion_missing_employee_does_not_fetch_rules():
     answer = answer_question(
         "EMP-999 符合晋升条件吗？",
@@ -429,6 +442,32 @@ def test_project_pause_reason_reports_missing_reason():
     assert "on_hold" in answer
     assert "未提供暂停原因" in answer
     assert "不能确认为什么暂停" in answer
+
+
+def test_recent_events_pause_reason_reports_missing_reason():
+    answer = answer_question(
+        "PRJ-005 为什么暂停？",
+        planner=FakePlanner(QueryPlan("hybrid", "recent_events", {"query": "PRJ-005 为什么暂停", "status": "on_hold"})),
+        polish_client=None,
+    )
+
+    assert "PRJ-005" in answer
+    assert "on_hold" in answer
+    assert "未提供暂停原因" in answer
+    assert "不能确认为什么暂停" in answer
+
+
+def test_project_members_with_project_id_does_not_trigger_pause_reason():
+    answer = answer_question(
+        "PRJ-005 有哪些成员？",
+        planner=FakePlanner(QueryPlan("db", "project_members", {"project_id": "PRJ-005"})),
+        polish_client=None,
+    )
+
+    assert "EMP-006" in answer
+    assert "EMP-003" in answer
+    assert "未提供暂停原因" not in answer
+    assert "None 当前状态" not in answer
 
 
 def test_department_projects_count_output_mode_reports_count_in_body():
