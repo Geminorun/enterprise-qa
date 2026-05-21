@@ -70,6 +70,53 @@ def test_promotion_answer_rejects_employee_already_at_target_level():
     assert "promotion_rules.md" in answer
 
 
+def test_promotion_answer_checks_p6_to_p7_rules():
+    plan = QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "张三", "from_level": "P6", "to_level": "P7"})
+    evidences = [
+        Evidence("db", "employees 表", "张三 当前职级 P6", "employee_id: EMP-001", {"name": "张三", "level": "P6", "hire_date": "2023-06-15"}),
+        Evidence(
+            "db",
+            "performance_reviews 表",
+            "张三 平均 KPI 89.25",
+            "employee_id: EMP-001",
+            {
+                "average_kpi": 89.25,
+                "review_count": 4,
+                "reviews": [
+                    {"year": 2025, "quarter": 1, "kpi_score": 88, "grade": "A"},
+                    {"year": 2025, "quarter": 2, "kpi_score": 92, "grade": "A"},
+                    {"year": 2025, "quarter": 3, "kpi_score": 87, "grade": "A"},
+                    {"year": 2025, "quarter": 4, "kpi_score": 90, "grade": "A"},
+                ],
+            },
+        ),
+        Evidence(
+            "db",
+            "project_members 表",
+            "张三 主导/核心参与项目数 3",
+            "employee_id: EMP-001",
+            {
+                "project_count": 3,
+                "projects": [
+                    {"project_id": "PRJ-001", "role": "lead"},
+                    {"project_id": "PRJ-002", "role": "core"},
+                    {"project_id": "PRJ-004", "role": "lead"},
+                ],
+            },
+        ),
+        Evidence("kb", "promotion_rules.md section P6 → P7", "P6 晋升 P7 条件", "promotion_rules.md", {}),
+    ]
+
+    answer = format_fallback_answer("张三符合晋升条件吗？", plan, evidences)
+
+    assert "P6 晋升 P7" in answer
+    assert "P6 满 2 年" in answer
+    assert "连续 4 季度 KPI≥90" in answer
+    assert "主导项目≥2 个" in answer
+    assert "技术突破/专利/论文" in answer
+    assert "暂不支持自动判定" not in answer
+
+
 def test_department_performance_answer_includes_aggregate_metrics():
     plan = QueryPlan("db", "department_performance_summary", {"employee_name": "张三", "year": 2025})
     evidence = [
@@ -135,26 +182,68 @@ def test_department_members_answer_uses_on_leave_status_label():
 
 
 def test_build_answer_appends_verified_sources_after_polish():
-    plan = QueryPlan("db", "performance_summary", {"employee_name": "张三", "year": 2025, "quarter": 2})
+    plan = QueryPlan("db", "employee_basic", {"employee_name": "张三", "field": "department"})
     evidence = [
         Evidence(
             "db",
-            "performance_reviews 表 + employees 表",
-            "2025 Q2 KPI 92 grade A",
+            "employees 表",
+            "张三的部门是研发部",
             "employee_id: EMP-001",
-            {"name": "张三", "year": 2025, "quarter": 2, "kpi_score": 92, "grade": "A"},
+            {"name": "张三", "department": "研发部"},
         )
     ]
 
     answer = build_answer(
-        "张三 2025 Q2 绩效如何？",
+        "张三的部门是什么？",
         plan,
         evidence,
-        client=FakeClient("张三 2025 Q2 KPI 为 92，评级 A。\n\n> 来源：绩效评估表"),
+        client=FakeClient("张三属于研发部。\n\n> 来源：员工信息表"),
         answer_polish=True,
     )
 
-    assert answer.endswith("> 来源：performance_reviews 表 + employees 表 (employee_id: EMP-001)")
+    assert answer.endswith("> 来源：employees 表 (employee_id: EMP-001)")
+
+
+def test_performance_summary_uses_deterministic_average_when_polish_enabled():
+    plan = QueryPlan("db", "performance_summary", {"employee_name": "李四", "year": 2025})
+    evidence = [
+        Evidence("db", "performance_reviews 表 + employees 表", "2025 Q1 KPI 95 grade S", "employee_id: EMP-002", {"name": "李四", "year": 2025, "quarter": 1, "kpi_score": 95, "grade": "S"}),
+        Evidence("db", "performance_reviews 表 + employees 表", "2025 Q2 KPI 93 grade S", "employee_id: EMP-002", {"name": "李四", "year": 2025, "quarter": 2, "kpi_score": 93, "grade": "S"}),
+        Evidence("db", "performance_reviews 表 + employees 表", "2025 Q3 KPI 91 grade A", "employee_id: EMP-002", {"name": "李四", "year": 2025, "quarter": 3, "kpi_score": 91, "grade": "A"}),
+        Evidence("db", "performance_reviews 表 + employees 表", "2025 Q4 KPI 94 grade S", "employee_id: EMP-002", {"name": "李四", "year": 2025, "quarter": 4, "kpi_score": 94, "grade": "S"}),
+    ]
+
+    answer = build_answer(
+        "李四 2025 年平均 KPI 是多少？",
+        plan,
+        evidence,
+        client=FakeClient("李四 2025 年绩效不错。\n\n> 来源：绩效表"),
+        answer_polish=True,
+    )
+
+    body = answer.split("> 来源：", 1)[0]
+    assert "平均 KPI 为 93.25" in body
+    assert "Q1 95" in body
+
+
+def test_department_projects_count_uses_deterministic_formatter_when_polish_enabled():
+    plan = QueryPlan("db", "department_projects", {"status": "active"}, "count")
+    evidence = [
+        Evidence("db", "projects 表 + project_members 表 + employees 表", "PRJ-001 ReMe 记忆框架", "project_id: PRJ-001", {"project_id": "PRJ-001", "name": "ReMe 记忆框架", "status": "active"}),
+        Evidence("db", "projects 表 + project_members 表 + employees 表", "PRJ-003 移动端 App", "project_id: PRJ-003", {"project_id": "PRJ-003", "name": "移动端 App", "status": "active"}),
+    ]
+
+    answer = build_answer(
+        "active 项目有多少个？",
+        plan,
+        evidence,
+        client=FakeClient("active 项目包括若干项目。\n\n> 来源：项目表"),
+        answer_polish=True,
+    )
+
+    body = answer.split("> 来源：", 1)[0]
+    assert "2 个项目" in body
+    assert "PRJ-001" in body
 
 
 def test_recent_events_uses_deterministic_formatter_when_polish_enabled():

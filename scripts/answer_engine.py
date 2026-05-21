@@ -183,6 +183,133 @@ def _latest_annual_average(reviews: list[dict], fallback: object) -> float | Non
         return None
 
 
+def _s_count_latest_year(reviews: list[dict]) -> int:
+    years = [int(item["year"]) for item in reviews if "year" in item]
+    if not years:
+        return 0
+    latest_year = max(years)
+    return sum(1 for item in reviews if int(item.get("year", 0)) == latest_year and item.get("grade") == "S")
+
+
+def _count_lead_projects(projects: dict) -> int:
+    rows = projects.get("projects", [])
+    if not isinstance(rows, list):
+        return 0
+    return sum(1 for item in rows if item.get("role") == "lead")
+
+
+def _grade_at_least(grade: object, minimum: str) -> bool:
+    order = {"D": 0, "C": 1, "B": 2, "A": 3, "S": 4}
+    return order.get(str(grade), -1) >= order[minimum]
+
+
+def _has_consecutive_grade(reviews: list[dict], minimum: str, required_count: int) -> bool:
+    best_run = 0
+    current_run = 0
+    previous_index: int | None = None
+    for review in sorted(reviews, key=lambda item: (item.get("year", 0), item.get("quarter", 0))):
+        try:
+            quarter_index = int(review["year"]) * 4 + int(review["quarter"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if _grade_at_least(review.get("grade"), minimum):
+            current_run = current_run + 1 if previous_index is not None and quarter_index == previous_index + 1 else 1
+            best_run = max(best_run, current_run)
+        else:
+            current_run = 0
+        previous_index = quarter_index
+    return best_run >= required_count
+
+
+def _promotion_checks(
+    from_level: str,
+    to_level: str,
+    employee: dict,
+    reviews: dict,
+    projects: dict,
+    current_date: str | None,
+) -> list[tuple[str, str, str, str]]:
+    review_list = reviews.get("reviews", [])
+    review_rows = review_list if isinstance(review_list, list) else []
+    annual_average = _latest_annual_average(review_rows, reviews.get("average_kpi"))
+    project_count = int(projects.get("project_count") or 0)
+    lead_count = _count_lead_projects(projects)
+    years = _years_between(employee.get("hire_date"), _as_date(current_date))
+
+    if (from_level, to_level) == ("P4", "P5"):
+        low_grades = [item.get("grade") for item in review_rows if item.get("grade") in {"C", "D"}]
+        return [
+            (
+                "工作年限",
+                "入职满 6 个月",
+                "满足" if years is not None and years >= 0.5 else "不满足" if years is not None else "待确认",
+                f"入职约 {years} 年。" if years is not None else "缺少可解析的入职日期。",
+            ),
+            (
+                "绩效要求",
+                "连续 2 季度≥B 且无 C/D 评价",
+                "满足" if _has_consecutive_grade(review_rows, "B", 2) and not low_grades else "不满足",
+                "绩效记录未出现 C/D。" if not low_grades else f"存在 {', '.join(str(item) for item in low_grades)} 评价。",
+            ),
+            ("学习任务", "完成导师指定任务", "待确认", "当前数据源未提供导师学习任务完成情况。"),
+        ]
+
+    if (from_level, to_level) == ("P5", "P6"):
+        consecutive_ok = _has_consecutive_kpi(review_rows, 85, 2)
+        annual_ok = annual_average is not None and annual_average >= 85
+        return [
+            (
+                "工作年限",
+                "入职满 1 年，或 P5 满 2 年",
+                "满足" if years is not None and years >= 1 else "不满足" if years is not None else "待确认",
+                f"入职约 {years} 年。" if years is not None else "缺少可解析的入职日期。",
+            ),
+            (
+                "绩效要求",
+                "连续 2 季度 KPI≥85 或年度平均≥85",
+                "满足" if consecutive_ok or annual_ok else "不满足",
+                f"年度平均 KPI {annual_average}。",
+            ),
+            (
+                "项目经验",
+                "主导或核心参与≥3 个",
+                "满足" if project_count >= 3 else "不满足",
+                f"主导/核心参与数为 {project_count}。",
+            ),
+            ("事故记录", "无重大事故（P0/P1）", "待确认", "当前数据源未提供 P0/P1 事故记录。"),
+        ]
+
+    if (from_level, to_level) == ("P6", "P7"):
+        kpi_ok = _has_consecutive_kpi(review_rows, 90, 4) or _s_count_latest_year(review_rows) >= 2
+        return [
+            ("工作年限", "P6 满 2 年", "待确认", "当前数据源没有职级生效日期，不能确认 P6 任职时长。"),
+            (
+                "绩效要求",
+                "连续 4 季度 KPI≥90 或年度 2 个 S",
+                "满足" if kpi_ok else "不满足",
+                f"当前年度平均 KPI {annual_average}，最新年度 S 评价 {_s_count_latest_year(review_rows)} 个。",
+            ),
+            (
+                "项目经验",
+                "主导项目≥2 个",
+                "满足" if lead_count >= 2 else "不满足",
+                f"主导项目数为 {lead_count}。",
+            ),
+            ("技术贡献", "技术突破/专利/论文至少 1 项", "待确认", "当前数据源未提供技术突破、专利或论文记录。"),
+        ]
+
+    if (from_level, to_level) == ("P7", "P8"):
+        s_count = _s_count_latest_year(review_rows)
+        return [
+            ("工作年限", "P7 满 3 年", "待确认", "当前数据源没有职级生效日期，不能确认 P7 任职时长。"),
+            ("绩效要求", "年度绩效至少 2 个 S 或连续 2 年 A 以上", "满足" if s_count >= 2 else "待确认", f"最新年度 S 评价 {s_count} 个。"),
+            ("业务贡献", "显著业务贡献，营收/效率提升≥30%", "待确认", "当前数据源未提供业务贡献量化记录。"),
+            ("影响力", "团队培养/技术分享，培养 2 名以上骨干", "待确认", "当前数据源未提供团队培养记录。"),
+        ]
+
+    return [("规则覆盖", f"{from_level} 晋升 {to_level}", "待确认", "当前规则表未覆盖该晋升级别。")]
+
+
 def _format_promotion_answer(plan: QueryPlan, evidences: list[Evidence], current_date: str | None) -> str:
     combined = {item.source: item.data for item in evidences}
     employee = combined.get("employees 表", {})
@@ -191,15 +318,6 @@ def _format_promotion_answer(plan: QueryPlan, evidences: list[Evidence], current
     name = str(employee.get("name", plan.params.get("employee_name", "该员工")))
     current_level = str(employee.get("level", "未知职级"))
     from_level, to_level = infer_promotion_levels(plan.params, current_level)
-
-    if (from_level, to_level) != ("P5", "P6"):
-        return (
-            f"{name}当前职级是 {current_level}，关于 {from_level} 晋升 {to_level}，"
-            "当前规则引擎暂不支持自动判定。已找到相关事实和规则来源，"
-            "但为避免套用错误晋升口径，这里不输出符合/不符合结论。"
-            f"\n\n{_source_block(evidences)}"
-        )
-
     failures: list[str] = []
     unknowns: list[str] = []
     checks: list[str] = []
@@ -213,38 +331,12 @@ def _format_promotion_answer(plan: QueryPlan, evidences: list[Evidence], current
     else:
         checks.append(f"- 职级：满足，当前职级是 {current_level}。")
 
-    years = _years_between(employee.get("hire_date"), _as_date(current_date))
-    if years is None:
-        unknowns.append("缺少可解析的入职日期")
-        checks.append("- 工作年限：待确认，缺少可解析的入职日期。")
-    elif years >= 1:
-        checks.append(f"- 工作年限：满足，入职约 {years} 年，要求入职满 1 年。")
-    else:
-        failures.append("入职未满 1 年")
-        checks.append(f"- 工作年限：不满足，入职约 {years} 年，要求入职满 1 年。")
-
-    review_details = reviews.get("reviews", [])
-    review_list = review_details if isinstance(review_details, list) else []
-    annual_average = _latest_annual_average(review_list, reviews.get("average_kpi"))
-    consecutive_ok = _has_consecutive_kpi(review_list, 85, 2)
-    annual_ok = annual_average is not None and annual_average >= 85
-    if consecutive_ok or annual_ok:
-        detail = f"年度平均 KPI {annual_average}" if annual_average is not None else "连续季度达标"
-        checks.append(f"- 绩效要求：满足，{detail}，规则要求连续 2 季度 KPI≥85 或年度平均≥85。")
-    else:
-        failures.append("绩效未达到 P5→P6 要求")
-        detail = f"当前平均 KPI {annual_average}" if annual_average is not None else "缺少 KPI 记录"
-        checks.append(f"- 绩效要求：不满足，{detail}，规则要求连续 2 季度 KPI≥85 或年度平均≥85。")
-
-    project_count = int(projects.get("project_count") or 0)
-    if project_count >= 3:
-        checks.append(f"- 项目经验：满足，主导/核心参与数为 {project_count}，规则要求主导或核心参与≥3 个。")
-    else:
-        failures.append("主导/核心参与项目不足 3 个")
-        checks.append(f"- 项目经验：不满足，主导/核心参与数为 {project_count}，规则要求主导或核心参与≥3 个。")
-
-    unknowns.append("当前数据源未提供 P0/P1 事故记录")
-    checks.append("- 事故记录：待确认，当前数据源未提供 P0/P1 事故记录。")
+    for name_, requirement, status, detail in _promotion_checks(from_level, to_level, employee, reviews, projects, current_date):
+        checks.append(f"- {name_}：{status}，规则要求{requirement}；{detail}")
+        if status == "不满足":
+            failures.append(f"{name_}不满足")
+        elif status == "待确认":
+            unknowns.append(f"{name_}待确认")
 
     if failures:
         result = "不符合"
@@ -278,6 +370,24 @@ def _format_department_performance(evidences: list[Evidence]) -> str:
         "这是由个人绩效记录汇总得到的结果，不是独立部门绩效表。"
         f"\n\n{_source_block(evidences)}"
     )
+
+
+def _format_performance_summary(plan: QueryPlan, evidences: list[Evidence]) -> str:
+    if not evidences:
+        return "我没有在当前数据源中找到相关绩效记录，因此不能确认答案。"
+    if plan.params.get("year") is not None and plan.params.get("quarter") is None:
+        values = [float(item.data["kpi_score"]) for item in evidences if item.data.get("kpi_score") is not None]
+        if values:
+            average = round(sum(values) / len(values), 2)
+            name = evidences[0].data.get("name", plan.params.get("employee_name", "该员工"))
+            year = plan.params["year"]
+            details = "；".join(
+                f"Q{item.data['quarter']} {item.data['kpi_score']}（{item.data.get('grade')}）"
+                for item in evidences
+            )
+            return f"{name} {year} 年平均 KPI 为 {average}。季度明细：{details}。\n\n{_source_block(evidences)}"
+    lines = [evidence.content for evidence in evidences]
+    return "\n".join(lines) + f"\n\n{_source_block(evidences)}"
 
 
 def _employee_status_label(status: object) -> str:
@@ -346,6 +456,33 @@ def _format_leave_entitlement_check(evidences: list[Evidence], current_date: str
     )
 
 
+def _format_project_collection(question: str, plan: QueryPlan, evidences: list[Evidence]) -> str:
+    if not evidences:
+        return "我没有在当前数据源中找到相关项目信息，因此不能确认答案。"
+    asks_reason = any(word in question for word in ("为什么", "原因")) or "PRJ-" in question
+    if asks_reason and any(item.data.get("status") == "on_hold" for item in evidences):
+        lines = [
+            f"{item.data.get('project_id')} {item.data.get('name')} 当前状态为 {item.data.get('status')}，"
+            "当前数据源未提供暂停原因，因此不能确认为什么暂停。"
+            for item in evidences
+        ]
+        return "\n".join(lines) + f"\n\n{_source_block(evidences)}"
+
+    if plan.output_mode == "count":
+        noun = "个项目" if plan.template != "project_members" else "名成员"
+        header = f"共找到 {len(evidences)} {noun}。"
+    else:
+        header = "相关项目如下：" if plan.template != "project_members" else "相关成员如下："
+
+    if plan.template == "employee_projects":
+        lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data['role']}" for item in evidences]
+    elif plan.template == "project_members":
+        lines = [f"- {item.data['employee_id']} {item.data['employee_name']}：{item.data['role']}" for item in evidences]
+    else:
+        lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data.get('status', '未知状态')}" for item in evidences]
+    return header + "\n" + "\n".join(lines) + f"\n\n{_source_block(evidences)}"
+
+
 def format_fallback_answer(
     question: str,
     plan: QueryPlan,
@@ -390,12 +527,14 @@ def format_fallback_answer(
     if plan.template == "department_performance_summary":
         return _format_department_performance(evidences)
 
+    if plan.template == "performance_summary":
+        return _format_performance_summary(plan, evidences)
+
     if plan.template == "recent_events":
         return _format_recent_events(evidences)
 
-    if plan.template == "employee_projects":
-        lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data['role']}" for item in evidences]
-        return "相关项目如下：\n" + "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
+    if plan.template in {"employee_projects", "department_projects", "project_members"}:
+        return _format_project_collection(question, plan, evidences)
 
     if plan.template == "kb_search":
         if any("meeting_notes/" in item.source or "meeting_notes/" in str(item.locator) for item in evidences):
@@ -448,6 +587,10 @@ def build_answer(
         "attendance_policy_check",
         "leave_entitlement_check",
         "recent_events",
+        "performance_summary",
+        "employee_projects",
+        "department_projects",
+        "project_members",
     }:
         return format_fallback_answer(question, plan, evidences, current_date=current_date)
 

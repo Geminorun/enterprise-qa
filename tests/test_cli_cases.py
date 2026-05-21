@@ -357,8 +357,15 @@ def test_promotion_p6_to_p7_does_not_use_p5_to_p6_rules():
         polish_client=None,
     )
 
-    assert "暂不支持自动判定" in answer
+    assert "P6 晋升 P7" in answer
     assert "promotion_rules.md" in answer
+    assert "P6 满 2 年" in answer
+    assert "连续 4 季度 KPI≥90" in answer
+    assert "主导项目≥2 个" in answer
+    assert "技术突破/专利/论文" in answer
+    assert "待确认" in answer
+    assert "不满足" in answer
+    assert "暂不支持自动判定" not in answer
     assert "KPI≥85" not in answer
     assert "主导或核心参与≥3" not in answer
 
@@ -388,6 +395,18 @@ def test_promotion_missing_employee_does_not_fetch_rules():
     assert "promotion_rules.md" not in answer
 
 
+def test_performance_summary_answers_yearly_average_kpi():
+    answer = answer_question(
+        "李四 2025 年平均 KPI 是多少？",
+        planner=FakePlanner(QueryPlan("db", "performance_summary", {"employee_name": "李四", "year": 2025})),
+        polish_client=None,
+    )
+
+    assert "平均 KPI 为 93.25" in answer
+    assert "Q1 95" in answer
+    assert "Q4 94" in answer
+
+
 def test_department_projects_normalizes_paused_status():
     answer = answer_question(
         "产品部有什么暂停项目？",
@@ -397,6 +416,32 @@ def test_department_projects_normalizes_paused_status():
 
     assert "PRJ-005" in answer
     assert "官网改版" in answer
+
+
+def test_project_pause_reason_reports_missing_reason():
+    answer = answer_question(
+        "PRJ-005 为什么暂停？",
+        planner=FakePlanner(QueryPlan("db", "department_projects", {"status": "on_hold"})),
+        polish_client=None,
+    )
+
+    assert "PRJ-005" in answer
+    assert "on_hold" in answer
+    assert "未提供暂停原因" in answer
+    assert "不能确认为什么暂停" in answer
+
+
+def test_department_projects_count_output_mode_reports_count_in_body():
+    answer = answer_question(
+        "active 项目有多少个？",
+        planner=FakePlanner(QueryPlan("db", "department_projects", {"status": "active"}, "count")),
+        polish_client=None,
+    )
+
+    body = answer.split("> 来源：", 1)[0]
+    assert "2 个" in body
+    assert "PRJ-001" in body
+    assert "PRJ-003" in body
 
 
 def test_employee_projects_filters_active_status():
