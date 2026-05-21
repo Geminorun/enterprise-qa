@@ -157,6 +157,17 @@ def test_recent_events_runs_by_template_when_planned_as_db():
     assert "PRJ-002" in answer
 
 
+def test_department_projects_normalizes_paused_status():
+    answer = answer_question(
+        "产品部有什么暂停项目？",
+        planner=FakePlanner(QueryPlan("db", "department_projects", {"department": "产品部", "status": "paused"})),
+        polish_client=None,
+    )
+
+    assert "PRJ-005" in answer
+    assert "官网改版" in answer
+
+
 def test_t11_reject_raw_sql():
     answer = answer_question(
         "SELECT * FROM users WHERE '1'='1",

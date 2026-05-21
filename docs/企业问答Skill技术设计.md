@@ -217,6 +217,7 @@ LLM prompt 包含：
 - 必填参数必须存在。
 - 参数类型必须匹配模板 schema。
 - `performance_summary.quarter` 会把 `Q1`、`Q2`、`第一季度`、`第二季度` 等表达归一化为 `1-4`，非法季度会被拒绝。
+- 项目类 `status` 会把 `暂停`、`paused`、`on hold`、`on_hold` 归一化为 `on_hold`，并统一 `在研/进行中/active`、`规划/planning`、`完成/completed` 等表达。
 - 日期范围必须有效且有边界。
 - 字段名必须来自白名单。
 - 不直接暴露 `manager_id` 等原始敏感字段；上级类答案需要解析成人名。
@@ -304,7 +305,7 @@ ORDER BY p.project_id
 }
 ```
 
-当未提供 `department` 时，查询所有在职员工参与的项目；`recent_events` 默认使用 `active/planning` 状态集合，避免把“最近有什么事”固定到单一部门。
+当未提供 `department` 时，查询所有在职员工参与的项目；`recent_events` 默认使用 `active/planning` 状态集合，避免把“最近有什么事”固定到单一部门。项目状态进入 SQL 前会归一化到数据库枚举，例如 `paused` 会转换为 `on_hold`。
 
 ### `department_performance_summary`
 

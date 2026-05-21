@@ -54,6 +54,33 @@ REQUIRED_ANY_PARAMS: dict[str, tuple[str, ...]] = {
 }
 
 EMPLOYEE_FIELDS = {"department", "email", "level", "hire_date", "status", "name"}
+PROJECT_STATUS_TEMPLATES = {"department_projects", "employee_projects", "recent_events"}
+PROJECT_STATUS_ALIASES = {
+    "active": "active",
+    "在研": "active",
+    "进行中": "active",
+    "進行中": "active",
+    "planning": "planning",
+    "规划": "planning",
+    "規劃": "planning",
+    "计划": "planning",
+    "計劃": "planning",
+    "planned": "planning",
+    "completed": "completed",
+    "完成": "completed",
+    "已完成": "completed",
+    "done": "completed",
+    "on_hold": "on_hold",
+    "onhold": "on_hold",
+    "on-hold": "on_hold",
+    "on hold": "on_hold",
+    "paused": "on_hold",
+    "pause": "on_hold",
+    "暂停": "on_hold",
+    "暫停": "on_hold",
+    "搁置": "on_hold",
+    "擱置": "on_hold",
+}
 QUARTER_ALIASES = {
     "q1": 1,
     "1": 1,
@@ -109,10 +136,28 @@ def _normalize_quarter(value: Any) -> int:
     return quarter
 
 
+def _normalize_project_status(value: Any) -> str | list[str]:
+    if isinstance(value, (list, tuple, set)):
+        return [_normalize_project_status_item(item) for item in value]
+    return _normalize_project_status_item(value)
+
+
+def _normalize_project_status_item(value: Any) -> str:
+    if not isinstance(value, str):
+        raise PlanValidationError(f"不支持的项目状态：{value}")
+    key = value.strip().lower().replace("_", " ")
+    normalized = PROJECT_STATUS_ALIASES.get(key)
+    if normalized is None:
+        raise PlanValidationError(f"不支持的项目状态：{value}")
+    return normalized
+
+
 def _normalize_params(plan: QueryPlan) -> dict[str, Any]:
     params = dict(plan.params)
     if plan.template == "performance_summary" and "quarter" in params:
         params["quarter"] = _normalize_quarter(params["quarter"])
+    if plan.template in PROJECT_STATUS_TEMPLATES and "status" in params:
+        params["status"] = _normalize_project_status(params["status"])
     return params
 
 

@@ -29,14 +29,14 @@ template 参数约束：
 - employee_manager params: employee_name 或 employee_id 必填。
 - department_members params: department 必填；status 可选。
 - employee_projects params: employee_name 或 employee_id 必填；status 可选。
-- department_projects params: department 可选；status 可选，支持单个状态或状态数组。
+- department_projects params: department 可选；status 可选，优先使用 active/planning/completed/on_hold，支持单个状态或状态数组。
 - project_members params: project_id 或 project_name 必填。
 - attendance_stats params: employee_name 或 employee_id 必填；status 必填；date_range 可选，格式 {"start":"YYYY-MM-DD","end":"YYYY-MM-DD"}。
 - performance_summary params: employee_name 或 employee_id 必填；year/quarter 可选；quarter 优先输出 1-4 的整数。
 - department_performance_summary params: department 或 employee_name 必填；year 必填；scope 可选。
 - promotion_eligibility params: employee_name 或 employee_id 必填；from_level/to_level 可选。
 - kb_search params: query 必填，topic 可选。
-- recent_events params: query/date_range/department/status 可选；未给 status 时默认查询 active/planning 项目。
+- recent_events params: query/date_range/department/status 可选；未给 status 时默认查询 active/planning 项目；“暂停/paused”映射为 on_hold。
 - unknown params: reason 可选。
 
 字段映射示例：
