@@ -13,6 +13,7 @@ from scripts.config import load_config
 from scripts.context import load_context, save_context
 from scripts.intent import Evidence, QueryPlan
 from scripts.knowledge_index import search_knowledge
+from scripts.levels import infer_promotion_levels
 from scripts.llm_client import LlmClient, LlmError
 from scripts.planner import plan_question
 from scripts.query_templates import execute_db_plan
@@ -34,9 +35,10 @@ def _execute_plan(plan: QueryPlan, db_path: Path, kb_path: Path) -> list[Evidenc
     if plan.template == "kb_search" or plan.source_type == "kb":
         return search_knowledge(kb_path, str(plan.params.get("query", plan.params.get("topic", ""))))
     if plan.template == "promotion_eligibility":
-        from_level = str(plan.params.get("from_level", "P5"))
-        to_level = str(plan.params.get("to_level", "P6"))
-        return execute_db_plan(db_path, plan) + search_knowledge(kb_path, f"{from_level} 晋升 {to_level} 条件")
+        db_evidence = execute_db_plan(db_path, plan)
+        employee = next((item.data for item in db_evidence if item.source == "employees 表"), {})
+        from_level, to_level = infer_promotion_levels(plan.params, employee.get("level"))
+        return db_evidence + search_knowledge(kb_path, f"{from_level} 晋升 {to_level} 条件")
     if plan.template == "recent_events":
         meeting_notes_path = kb_path / "meeting_notes"
         notes_root = meeting_notes_path if meeting_notes_path.exists() else kb_path

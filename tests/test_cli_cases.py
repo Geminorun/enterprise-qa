@@ -320,6 +320,19 @@ def test_meeting_notes_summary_keeps_structured_decision_rows():
     assert len(answer) < 1200
 
 
+def test_recent_events_meeting_notes_uses_summary_not_raw_markdown():
+    answer = answer_question(
+        "技术同步会说下周启动什么？",
+        planner=FakePlanner(QueryPlan("hybrid", "recent_events", {"query": "技术同步会说下周启动什么"})),
+        polish_client=None,
+    )
+
+    assert "代码重构" in answer
+    assert "下周启动" in answer
+    assert "# 2026 年 3 月技术同步会纪要" not in answer
+    assert len(answer) < 1200
+
+
 def test_recent_events_runs_by_template_when_planned_as_db():
     answer = answer_question(
         "最近有什么事？",
@@ -343,6 +356,19 @@ def test_promotion_p6_to_p7_does_not_use_p5_to_p6_rules():
     assert "promotion_rules.md" in answer
     assert "KPI≥85" not in answer
     assert "主导或核心参与≥3" not in answer
+
+
+def test_promotion_without_levels_infers_next_level_rules():
+    answer = answer_question(
+        "吴十符合晋升条件吗？",
+        planner=FakePlanner(QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "吴十"})),
+        polish_client=None,
+    )
+
+    assert "P4 晋升 P5" in answer
+    assert "promotion_rules.md" in answer
+    assert "P4 → P5" in answer
+    assert "P5 → P6" not in answer
 
 
 def test_department_projects_normalizes_paused_status():

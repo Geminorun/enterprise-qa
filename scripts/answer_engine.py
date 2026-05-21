@@ -6,6 +6,7 @@ import re
 from typing import Protocol
 
 from scripts.intent import Evidence, QueryPlan
+from scripts.levels import infer_promotion_levels
 from scripts.llm_client import LlmClient, LlmError
 
 
@@ -170,8 +171,7 @@ def _format_promotion_answer(plan: QueryPlan, evidences: list[Evidence], current
     projects = combined.get("project_members 表", {})
     name = str(employee.get("name", plan.params.get("employee_name", "该员工")))
     current_level = str(employee.get("level", "未知职级"))
-    from_level = str(plan.params.get("from_level", current_level))
-    to_level = str(plan.params.get("to_level", "目标职级"))
+    from_level, to_level = infer_promotion_levels(plan.params, current_level)
 
     if (from_level, to_level) != ("P5", "P6"):
         return (
@@ -380,6 +380,9 @@ def format_fallback_answer(
             return _format_meeting_notes_answer(evidences)
         lines = [item.content for item in evidences]
         return "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
+
+    if any("meeting_notes/" in item.source or "meeting_notes/" in str(item.locator) for item in evidences):
+        return _format_meeting_notes_answer(evidences)
 
     lines = [evidence.content for evidence in evidences]
     return "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
