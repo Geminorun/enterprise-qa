@@ -447,6 +447,7 @@ def build_answer(
         "department_performance_summary",
         "attendance_policy_check",
         "leave_entitlement_check",
+        "recent_events",
     }:
         return format_fallback_answer(question, plan, evidences, current_date=current_date)
 

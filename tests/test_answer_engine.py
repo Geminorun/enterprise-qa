@@ -155,3 +155,35 @@ def test_build_answer_appends_verified_sources_after_polish():
     )
 
     assert answer.endswith("> 来源：performance_reviews 表 + employees 表 (employee_id: EMP-001)")
+
+
+def test_recent_events_uses_deterministic_formatter_when_polish_enabled():
+    plan = QueryPlan("hybrid", "recent_events", {"query": "最近 会议 项目"})
+    evidence = [
+        Evidence(
+            "kb",
+            "meeting_notes/2026-03-15-tech-sync.md file",
+            "# 2026 年 3 月技术同步会纪要\n\n## 决议事项\n| 决议 | 说明 | 负责人 |\n| 代码重构 | 下周启动，为期 2 周 | 张三 |",
+            "meeting_notes/2026-03-15-tech-sync.md",
+            {"recall": "file"},
+        ),
+        Evidence(
+            "db",
+            "projects 表 + project_members 表 + employees 表",
+            "PRJ-001 ReMe 记忆框架",
+            "project_id: PRJ-001",
+            {"project_id": "PRJ-001", "name": "ReMe 记忆框架", "status": "active"},
+        ),
+    ]
+
+    answer = build_answer(
+        "最近有什么事？",
+        plan,
+        evidence,
+        client=FakeClient("最近主要是技术同步会。\n\n> 来源：meeting_notes/2026-03-15-tech-sync.md"),
+        answer_polish=True,
+    )
+
+    body = answer.split("> 来源：", 1)[0]
+    assert "代码重构" in body
+    assert "PRJ-001" in body
