@@ -43,17 +43,34 @@ def _clean_markdown_line(line: str) -> str:
     return line.strip()
 
 
+def _is_table_data_line(line: str) -> bool:
+    if not (line.startswith("|") and line.endswith("|")):
+        return False
+    cells = [cell.strip() for cell in line.strip("|").split("|")]
+    if not cells or all(set(cell) <= {"-"} for cell in cells if cell):
+        return False
+    header_cells = {"决议", "说明", "负责人", "事项", "时间"}
+    return not set(cells) <= header_cells
+
+
 def _summarize_meeting_note(content: str) -> str:
     important_terms = ("ReMe", "智能问答", "AI 实验室", "技术委员会", "调薪", "期权", "晋升", "决议", "后续行动")
+    structured_sections = ("决议事项", "后续行动")
     lines: list[str] = []
+    in_structured_section = False
     for raw_line in content.splitlines():
         stripped = raw_line.strip()
         if not stripped or stripped == "---" or set(stripped.replace("|", "").strip()) <= {"-"}:
             continue
-        line = _clean_markdown_line(stripped)
+        if stripped.startswith("#"):
+            heading = _clean_markdown_line(stripped)
+            in_structured_section = any(term in heading for term in structured_sections)
+            line = heading
+        else:
+            line = _clean_markdown_line(stripped)
         if not line or set(line.replace(" ", "")) <= {"-"}:
             continue
-        if len(lines) < 8 or any(term in line for term in important_terms):
+        if len(lines) < 8 or any(term in line for term in important_terms) or (in_structured_section and _is_table_data_line(stripped)):
             if line not in lines:
                 lines.append(line)
     if not lines:

@@ -305,6 +305,21 @@ def test_meeting_notes_fallback_summarizes_instead_of_dumping_markdown():
     assert len(answer) < 1200
 
 
+def test_meeting_notes_summary_keeps_structured_decision_rows():
+    answer = answer_question(
+        "技术同步会说下周启动什么？",
+        planner=FakePlanner(QueryPlan("kb", "kb_search", {"query": "技术同步会说下周启动什么"})),
+        polish_client=None,
+    )
+
+    assert "技术同步会" in answer
+    assert "代码重构" in answer
+    assert "下周启动" in answer
+    assert "张三" in answer
+    assert "# 2026 年 3 月技术同步会纪要" not in answer
+    assert len(answer) < 1200
+
+
 def test_recent_events_runs_by_template_when_planned_as_db():
     answer = answer_question(
         "最近有什么事？",
