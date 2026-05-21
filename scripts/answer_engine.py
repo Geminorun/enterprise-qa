@@ -177,7 +177,7 @@ def _format_department_performance(evidences: list[Evidence]) -> str:
 
 
 def _employee_status_label(status: object) -> str:
-    labels = {"active": "在职", "resigned": "离职"}
+    labels = {"active": "在职", "on_leave": "休假", "resigned": "离职"}
     return labels.get(str(status), str(status))
 
 

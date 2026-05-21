@@ -116,6 +116,24 @@ def test_department_members_answer_uses_resigned_status_label():
     assert "在职员工" not in answer
 
 
+def test_department_members_answer_uses_on_leave_status_label():
+    plan = QueryPlan("db", "department_members", {"department": "研发部", "status": "on_leave"})
+    evidence = [
+        Evidence(
+            "db",
+            "employees 表",
+            "研发部 on_leave 员工 0 人",
+            "department: 研发部, status: on_leave",
+            {"department": "研发部", "status": "on_leave", "count": 0, "members": []},
+        )
+    ]
+
+    answer = format_fallback_answer("研发部有哪些休假员工？", plan, evidence)
+
+    assert "研发部有 0 名休假员工" in answer
+    assert "on_leave 员工" not in answer
+
+
 def test_build_answer_appends_verified_sources_after_polish():
     plan = QueryPlan("db", "performance_summary", {"employee_name": "张三", "year": 2025, "quarter": 2})
     evidence = [
