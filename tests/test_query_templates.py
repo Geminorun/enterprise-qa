@@ -1,0 +1,60 @@
+from pathlib import Path
+
+from scripts.intent import QueryPlan
+from scripts.query_templates import execute_db_plan
+
+
+DB_PATH = Path("data/enterprise.db")
+
+
+def test_employee_basic_department():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan("db", "employee_basic", {"employee_name": "张三", "field": "department"}),
+    )
+
+    assert evidence[0].data["department"] == "研发部"
+    assert "employees 表" in evidence[0].source
+
+
+def test_employee_manager():
+    evidence = execute_db_plan(DB_PATH, QueryPlan("db", "employee_manager", {"employee_name": "李四"}))
+
+    assert evidence[0].data["manager_name"] == "CEO"
+
+
+def test_employee_projects():
+    evidence = execute_db_plan(DB_PATH, QueryPlan("db", "employee_projects", {"employee_name": "张三"}))
+    project_ids = {item.data["project_id"] for item in evidence}
+
+    assert project_ids == {"PRJ-001", "PRJ-002", "PRJ-003", "PRJ-004"}
+
+
+def test_attendance_stats():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan(
+            "db",
+            "attendance_stats",
+            {
+                "employee_name": "张三",
+                "status": "late",
+                "date_range": {"start": "2026-02-01", "end": "2026-02-28"},
+            },
+            "count",
+        ),
+    )
+
+    assert evidence[0].data["count"] == 2
+
+
+def test_promotion_facts_for_wangwu():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "王五", "from_level": "P5", "to_level": "P6"}),
+    )
+    combined = {item.source: item.data for item in evidence}
+
+    assert combined["employees 表"]["level"] == "P5"
+    assert combined["performance_reviews 表"]["average_kpi"] == 80.0
+    assert combined["project_members 表"]["project_count"] == 1
