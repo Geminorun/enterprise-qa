@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 from typing import Callable
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.answer_engine import build_answer
 from scripts.config import load_config
 from scripts.context import load_context, save_context
 from scripts.intent import Evidence, QueryPlan
 from scripts.knowledge_index import search_knowledge
-from scripts.llm_client import LlmClient
+from scripts.llm_client import LlmClient, LlmError
 from scripts.planner import plan_question
 from scripts.query_templates import execute_db_plan
 from scripts.validator import PlanValidationError, validate_plan
@@ -50,6 +54,8 @@ def answer_question(
         plan = validate_plan(planner(question, context))
     except PlanValidationError as exc:
         return f"我不能执行这个查询：{exc}"
+    except LlmError as exc:
+        return f"我不能生成查询计划：LLM provider 不可用。{exc}"
 
     if plan.needs_clarification and plan.clarification_question:
         return plan.clarification_question

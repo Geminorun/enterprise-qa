@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 from scripts.cli import answer_question
 from scripts.intent import QueryPlan
 
@@ -145,3 +148,25 @@ def test_t12_unknown_reimbursement():
     )
 
     assert "没有" in answer or "未找到" in answer
+
+
+def test_cli_script_help_runs_from_repo_root():
+    result = subprocess.run(
+        [sys.executable, "scripts/cli.py", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "Enterprise QA Skill CLI" in result.stdout
+
+
+def test_answer_question_reports_missing_llm_provider(monkeypatch):
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.delenv("SILICONFLOW_API_KEY", raising=False)
+
+    answer = answer_question("张三的部门是什么？")
+
+    assert "LLM" in answer
+    assert "不能生成查询计划" in answer

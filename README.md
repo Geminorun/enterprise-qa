@@ -39,3 +39,17 @@ python scripts/cli.py "王五符合 P5 晋升 P6 条件吗？"
 python -m pip install -r requirements.txt
 python -m pytest -q
 ```
+
+## 快速自测
+
+以下命令需要先按上文配置至少一个 LLM provider。
+
+```bash
+python scripts/cli.py "张三的部门是什么？"
+python scripts/cli.py "年假怎么计算？"
+python scripts/cli.py "张三负责哪些项目？"
+python scripts/cli.py "王五符合 P5 晋升 P6 条件吗？"
+python scripts/cli.py "查一下 EMP-999"
+```
+
+输出应包含自然语言答案和 `> 来源：...`。
