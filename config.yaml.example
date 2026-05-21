@@ -1,0 +1,23 @@
+database:
+  type: sqlite
+  path: ./data/enterprise.db
+
+knowledge_base:
+  root_path: ./data/knowledge
+  index_type: keyword
+
+llm:
+  timeout_seconds: 20
+  answer_polish: true
+  providers:
+    - name: deepseek
+      api_key: ${DEEPSEEK_API_KEY}
+      base_url: https://api.deepseek.com
+      model: deepseek-chat
+    - name: siliconflow
+      api_key: ${SILICONFLOW_API_KEY}
+      base_url: https://api.siliconflow.cn/v1
+      model: deepseek-ai/DeepSeek-V3
+
+timezone: Asia/Shanghai
+current_date: 2026-03-27
