@@ -233,17 +233,24 @@ def _attendance_stats(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidenc
 def _performance_summary(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
     condition, value = _employee_filter(plan.params)
     year = plan.params.get("year")
-    year_clause = "AND pr.year = ?" if year else ""
-    args: tuple[Any, ...] = (value, year) if year else (value,)
+    quarter = plan.params.get("quarter")
+    filters = []
+    args: list[Any] = [value]
+    if year is not None:
+        filters.append("AND pr.year = ?")
+        args.append(year)
+    if quarter is not None:
+        filters.append("AND pr.quarter = ?")
+        args.append(quarter)
     rows = conn.execute(
         f"""
         SELECT e.employee_id, e.name, pr.year, pr.quarter, pr.kpi_score, pr.grade
         FROM employees e
         JOIN performance_reviews pr ON pr.employee_id = e.employee_id
-        WHERE {condition} {year_clause}
+        WHERE {condition} {" ".join(filters)}
         ORDER BY pr.year, pr.quarter
         """,
-        args,
+        tuple(args),
     ).fetchall()
     return [
         Evidence(

@@ -65,3 +65,13 @@ def test_promotion_facts_for_wangwu():
     assert combined["employees 表"]["level"] == "P5"
     assert combined["performance_reviews 表"]["average_kpi"] == 80.0
     assert combined["project_members 表"]["project_count"] == 1
+
+
+def test_performance_summary_filters_by_quarter():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan("db", "performance_summary", {"employee_name": "张三", "year": 2025, "quarter": 2}),
+    )
+
+    assert [item.data["quarter"] for item in evidence] == [2]
+    assert evidence[0].data["kpi_score"] == 92

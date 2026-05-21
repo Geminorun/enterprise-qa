@@ -90,6 +90,17 @@ def test_t07_promotion_wangwu():
     assert "project_members 表" in answer
 
 
+def test_promotion_template_loads_rules_when_planned_as_db():
+    answer = answer_question(
+        "王五符合 P5 晋升 P6 条件吗？",
+        planner=FakePlanner(QueryPlan("db", "promotion_eligibility", {"employee_name": "王五", "from_level": "P5", "to_level": "P6"})),
+        polish_client=None,
+    )
+
+    assert "不符合" in answer
+    assert "promotion_rules.md" in answer
+
+
 def test_t08_zhangsan_late_count():
     answer = answer_question(
         "张三 2 月迟到几次？",

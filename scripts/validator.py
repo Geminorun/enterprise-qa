@@ -36,7 +36,7 @@ REQUIRED_PARAMS: dict[str, set[str]] = {
     "attendance_stats": {"status"},
     "performance_summary": set(),
     "department_performance_summary": {"year"},
-    "promotion_eligibility": {"employee_name"},
+    "promotion_eligibility": set(),
     "kb_search": {"query"},
     "recent_events": set(),
     "unknown": set(),

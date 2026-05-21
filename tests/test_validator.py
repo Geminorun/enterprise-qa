@@ -75,3 +75,16 @@ def test_rejects_project_members_without_project_locator():
 
     with pytest.raises(PlanValidationError, match="缺少必要定位参数"):
         validate_plan(plan)
+
+
+def test_accepts_promotion_eligibility_with_employee_id():
+    plan = QueryPlan(
+        source_type="db",
+        template="promotion_eligibility",
+        params={"employee_id": "EMP-003", "from_level": "P5", "to_level": "P6"},
+        output_mode="summary",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.params["employee_id"] == "EMP-003"
