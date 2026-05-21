@@ -65,6 +65,11 @@ enterprise-qa/
     +-- query_templates.py
     +-- knowledge_index.py
     +-- answer_engine.py
+    +-- evidence_formatter.py
+    +-- performance_formatter.py
+    +-- project_formatter.py
+    +-- promotion_rules_engine.py
+    +-- date_utils.py
     +-- context.py
 +-- data/
     +-- enterprise.db
@@ -106,7 +111,12 @@ tests/
 - `validator.py`：校验计划模板、参数、数据源类型、可用字段和危险输入。
 - `query_templates.py`：集中维护参数化 SQLite 查询模板。
 - `knowledge_index.py`：索引并检索相关 Markdown 分块。
-- `answer_engine.py`：融合证据，调用 LLM 润色答案，并在失败时回退到确定性格式化。
+- `answer_engine.py`：融合证据，调用 LLM 润色答案，并在失败时调度确定性 formatter。
+- `evidence_formatter.py`：集中生成来源块，避免 formatter 各自拼接来源文本。
+- `performance_formatter.py`：维护绩效和部门绩效回答格式。
+- `project_formatter.py`：维护项目列表、数量和暂停原因缺失等项目回答格式。
+- `promotion_rules_engine.py`：维护晋升规则逐项判定，信息不足时输出“待确认”。
+- `date_utils.py`：提供日期解析和工龄计算工具。
 - `context.py`：保存轻量的最近对话上下文，用于追问问题。
 - `data/`：随 Skill 一起发布的运行数据，包含开箱可用的 `enterprise.db`、建表脚本、种子数据和知识库。
 - `tests/`：pytest 测试，验证查询模板、校验器、知识库检索和公开问答案例。
@@ -311,6 +321,8 @@ ORDER BY p.project_id
 ```
 
 当未提供 `department` 时，查询所有在职员工参与的项目；`recent_events` 默认使用 `active/planning` 状态集合，避免把“最近有什么事”固定到单一部门。项目状态进入 SQL 前会归一化到数据库枚举，例如 `paused` 会转换为 `on_hold`。
+
+项目类模板可选 `intent`，当前仅允许 `reason_query`。当用户询问项目暂停原因但数据库只提供 `status=on_hold`、没有原因字段时，formatter 必须说明“当前数据源未提供暂停原因，因此不能确认为什么暂停”，不能把项目名称或状态解释为原因。
 
 ### `department_performance_summary`
 

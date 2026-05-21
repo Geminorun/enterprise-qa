@@ -457,6 +457,18 @@ def test_recent_events_pause_reason_reports_missing_reason():
     assert "不能确认为什么暂停" in answer
 
 
+def test_recent_events_uses_structured_reason_intent():
+    answer = answer_question(
+        "PRJ-005 状态说明",
+        planner=FakePlanner(QueryPlan("hybrid", "recent_events", {"query": "PRJ-005 状态说明", "status": "on_hold", "intent": "reason_query"})),
+        polish_client=None,
+    )
+
+    assert "PRJ-005" in answer
+    assert "未提供暂停原因" in answer
+    assert "不能确认为什么暂停" in answer
+
+
 def test_project_members_with_project_id_does_not_trigger_pause_reason():
     answer = answer_question(
         "PRJ-005 有哪些成员？",

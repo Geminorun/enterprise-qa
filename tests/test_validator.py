@@ -163,6 +163,20 @@ def test_normalizes_project_status_aliases():
     assert validated.params["status"] == "on_hold"
 
 
+def test_normalizes_project_reason_intent():
+    plan = QueryPlan(
+        source_type="hybrid",
+        template="recent_events",
+        params={"query": "PRJ-005 状态说明", "status": "paused", "intent": "why"},
+        output_mode="summary",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.params["status"] == "on_hold"
+    assert validated.params["intent"] == "reason_query"
+
+
 def test_normalizes_employee_status_aliases():
     plan = QueryPlan(
         source_type="db",

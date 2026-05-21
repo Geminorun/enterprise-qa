@@ -14,8 +14,8 @@ SAFE_TEMPLATES: dict[str, set[str]] = {
     "employee_basic": {"employee_name", "employee_id", "field"},
     "employee_manager": {"employee_name", "employee_id"},
     "department_members": {"department", "status"},
-    "employee_projects": {"employee_name", "employee_id", "status"},
-    "department_projects": {"department", "status"},
+    "employee_projects": {"employee_name", "employee_id", "status", "intent"},
+    "department_projects": {"department", "status", "intent"},
     "project_members": {"project_id", "project_name"},
     "attendance_stats": {"employee_name", "employee_id", "date_range", "status"},
     "attendance_policy_check": {"employee_name", "employee_id", "date_range", "status", "policy_topic"},
@@ -24,7 +24,7 @@ SAFE_TEMPLATES: dict[str, set[str]] = {
     "department_performance_summary": {"employee_name", "department", "year", "scope"},
     "promotion_eligibility": {"employee_name", "employee_id", "from_level", "to_level"},
     "kb_search": {"query", "topic"},
-    "recent_events": {"query", "date_range", "department", "status"},
+    "recent_events": {"query", "date_range", "department", "status", "intent"},
     "unknown": {"reason"},
 }
 
@@ -98,6 +98,15 @@ EMPLOYEE_STATUS_ALIASES = {
     "假期": "on_leave",
 }
 PROJECT_STATUS_TEMPLATES = {"department_projects", "employee_projects", "recent_events"}
+PROJECT_INTENT_TEMPLATES = {"department_projects", "employee_projects", "recent_events"}
+PROJECT_INTENT_ALIASES = {
+    "reason_query": "reason_query",
+    "reason": "reason_query",
+    "why": "reason_query",
+    "原因": "reason_query",
+    "为什么": "reason_query",
+    "为何": "reason_query",
+}
 PROJECT_STATUS_ALIASES = {
     "active": "active",
     "在研": "active",
@@ -205,6 +214,16 @@ def _normalize_employee_status(value: Any) -> str:
     return normalized
 
 
+def _normalize_project_intent(value: Any) -> str:
+    if not isinstance(value, str):
+        raise PlanValidationError(f"不支持的项目查询意图：{value}")
+    key = value.strip().lower().replace(" ", "_")
+    normalized = PROJECT_INTENT_ALIASES.get(key)
+    if normalized is None:
+        raise PlanValidationError(f"不支持的项目查询意图：{value}")
+    return normalized
+
+
 def _normalize_attendance_status(value: Any) -> str:
     if not isinstance(value, str):
         raise PlanValidationError(f"不支持的考勤状态：{value}")
@@ -223,6 +242,8 @@ def _normalize_params(plan: QueryPlan) -> dict[str, Any]:
         params["quarter"] = _normalize_quarter(params["quarter"])
     if plan.template in PROJECT_STATUS_TEMPLATES and "status" in params:
         params["status"] = _normalize_project_status(params["status"])
+    if plan.template in PROJECT_INTENT_TEMPLATES and "intent" in params:
+        params["intent"] = _normalize_project_intent(params["intent"])
     if plan.template in EMPLOYEE_STATUS_TEMPLATES and "status" in params:
         params["status"] = _normalize_employee_status(params["status"])
     if plan.template in ATTENDANCE_STATUS_TEMPLATES and "status" in params:

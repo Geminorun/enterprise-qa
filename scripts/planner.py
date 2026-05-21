@@ -28,8 +28,8 @@ template 参数约束：
 - employee_basic params: employee_name 或 employee_id 必填；field 必填且只能是 department/email/level/hire_date/status/name。
 - employee_manager params: employee_name 或 employee_id 必填。
 - department_members params: department 必填；status 可选，员工状态优先使用 active/on_leave/resigned；“离职”映射为 resigned，“休假/请假”映射为 on_leave。
-- employee_projects params: employee_name 或 employee_id 必填；status 可选，项目状态优先使用 active/planning/completed/on_hold，支持单个状态或状态数组。
-- department_projects params: department 可选；status 可选，优先使用 active/planning/completed/on_hold，支持单个状态或状态数组。
+- employee_projects params: employee_name 或 employee_id 必填；status 可选，项目状态优先使用 active/planning/completed/on_hold，支持单个状态或状态数组；询问项目原因时 intent 使用 reason_query。
+- department_projects params: department 可选；status 可选，优先使用 active/planning/completed/on_hold，支持单个状态或状态数组；询问项目原因时 intent 使用 reason_query。
 - project_members params: project_id 或 project_name 必填。
 - attendance_stats params: employee_name 或 employee_id 必填；status 必填；date_range 可选，格式 {"start":"YYYY-MM-DD","end":"YYYY-MM-DD"}。
 - attendance_policy_check params: employee_name 或 employee_id 必填；status 必填；date_range 可选；policy_topic 可选。用于“考勤次数是否触发制度/扣款/处罚”这类混合问题，不要输出 sub_queries。
@@ -38,7 +38,7 @@ template 参数约束：
 - department_performance_summary params: department 或 employee_name 必填；year 必填；scope 可选。
 - promotion_eligibility params: employee_name 或 employee_id 必填；from_level/to_level 可选。
 - kb_search params: query 必填，topic 可选。
-- recent_events params: query/date_range/department/status 可选；未给 status 时默认查询 active/planning 项目；“暂停/paused”映射为 on_hold。
+- recent_events params: query/date_range/department/status/intent 可选；未给 status 时默认查询 active/planning 项目；“暂停/paused”映射为 on_hold；询问项目原因时 intent 使用 reason_query。
 - unknown params: reason 可选。
 
 字段映射示例：
@@ -52,6 +52,7 @@ template 参数约束：
 - “王五上个月迟到超过扣款线了吗？” -> {"source_type":"hybrid","template":"attendance_policy_check","params":{"employee_name":"王五","status":"late","date_range":{"start":"2026-02-01","end":"2026-02-28"},"policy_topic":"迟到规则"},"output_mode":"summary"}
 - “入职未满一年的吴十有年假吗？” -> {"source_type":"hybrid","template":"leave_entitlement_check","params":{"employee_name":"吴十","leave_type":"年假"},"output_mode":"summary"}
 - “张三 2025 Q2 绩效如何？” -> {"source_type":"db","template":"performance_summary","params":{"employee_name":"张三","year":2025,"quarter":2},"output_mode":"summary"}
+- “PRJ-005 为什么暂停？” -> {"source_type":"hybrid","template":"recent_events","params":{"query":"PRJ-005 为什么暂停","status":"on_hold","intent":"reason_query"},"output_mode":"summary"}
 - “年假怎么计算？” -> {"source_type":"kb","template":"kb_search","params":{"query":"年假怎么计算"},"output_mode":"summary"}
 
 输出字段：

@@ -117,6 +117,46 @@ def test_promotion_answer_checks_p6_to_p7_rules():
     assert "暂不支持自动判定" not in answer
 
 
+def test_promotion_p5_to_p6_without_performance_records_is_pending():
+    plan = QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "测试员工", "from_level": "P5", "to_level": "P6"})
+    evidences = [
+        Evidence("db", "employees 表", "测试员工 当前职级 P5", "employee_id: EMP-T01", {"name": "测试员工", "level": "P5", "hire_date": "2023-01-01"}),
+        Evidence("db", "performance_reviews 表", "测试员工 平均 KPI None", "employee_id: EMP-T01", {"average_kpi": None, "review_count": 0, "reviews": []}),
+        Evidence("db", "project_members 表", "测试员工 主导/核心参与项目数 3", "employee_id: EMP-T01", {"project_count": 3}),
+        Evidence("kb", "promotion_rules.md section P5 → P6", "P5 晋升 P6 条件", "promotion_rules.md", {}),
+    ]
+
+    answer = format_fallback_answer("测试员工符合 P5 晋升 P6 条件吗？", plan, evidences)
+
+    assert "绩效要求：待确认" in answer
+    assert "当前数据源没有连续季度绩效记录" in answer
+    assert "绩效要求不满足" not in answer
+    assert "年度平均 KPI None" not in answer
+
+
+def test_promotion_p6_to_p7_without_performance_records_is_pending():
+    plan = QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "孙八", "from_level": "P6", "to_level": "P7"})
+    evidences = [
+        Evidence("db", "employees 表", "孙八 当前职级 P6", "employee_id: EMP-006", {"name": "孙八", "level": "P6", "hire_date": "2023-03-15"}),
+        Evidence("db", "performance_reviews 表", "孙八 平均 KPI None", "employee_id: EMP-006", {"average_kpi": None, "review_count": 0, "reviews": []}),
+        Evidence(
+            "db",
+            "project_members 表",
+            "孙八 主导/核心参与项目数 2",
+            "employee_id: EMP-006",
+            {"project_count": 2, "projects": [{"project_id": "PRJ-005", "role": "lead"}, {"project_id": "PRJ-006", "role": "lead"}]},
+        ),
+        Evidence("kb", "promotion_rules.md section P6 → P7", "P6 晋升 P7 条件", "promotion_rules.md", {}),
+    ]
+
+    answer = format_fallback_answer("孙八符合 P6 晋升 P7 条件吗？", plan, evidences)
+
+    assert "绩效要求：待确认" in answer
+    assert "当前数据源没有连续季度绩效记录" in answer
+    assert "绩效要求不满足" not in answer
+    assert "当前年度平均 KPI None" not in answer
+
+
 def test_department_performance_answer_includes_aggregate_metrics():
     plan = QueryPlan("db", "department_performance_summary", {"employee_name": "张三", "year": 2025})
     evidence = [
