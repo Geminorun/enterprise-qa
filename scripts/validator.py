@@ -27,7 +27,7 @@ SAFE_TEMPLATES: dict[str, set[str]] = {
 }
 
 REQUIRED_PARAMS: dict[str, set[str]] = {
-    "employee_basic": {"field"},
+    "employee_basic": set(),
     "employee_manager": set(),
     "department_members": {"department"},
     "employee_projects": set(),
@@ -182,6 +182,8 @@ def _normalize_employee_status(value: Any) -> str:
 
 def _normalize_params(plan: QueryPlan) -> dict[str, Any]:
     params = dict(plan.params)
+    if plan.template == "employee_basic" and "field" not in params:
+        params["field"] = "name"
     if plan.template == "performance_summary" and "quarter" in params:
         params["quarter"] = _normalize_quarter(params["quarter"])
     if plan.template in PROJECT_STATUS_TEMPLATES and "status" in params:

@@ -125,7 +125,7 @@ def test_t08_zhangsan_late_count():
 def test_t09_missing_employee():
     answer = answer_question(
         "查一下 EMP-999",
-        planner=FakePlanner(QueryPlan("db", "employee_basic", {"employee_id": "EMP-999", "field": "name"})),
+        planner=FakePlanner(QueryPlan("db", "employee_basic", {"employee_id": "EMP-999"})),
         polish_client=None,
     )
 
@@ -155,6 +155,19 @@ def test_recent_events_runs_by_template_when_planned_as_db():
     assert "meeting_notes" in answer
     assert "PRJ-001" in answer
     assert "PRJ-002" in answer
+
+
+def test_promotion_p6_to_p7_does_not_use_p5_to_p6_rules():
+    answer = answer_question(
+        "张三 P6 晋升 P7 可以吗？",
+        planner=FakePlanner(QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "张三", "from_level": "P6", "to_level": "P7"})),
+        polish_client=None,
+    )
+
+    assert "暂不支持自动判定" in answer
+    assert "promotion_rules.md" in answer
+    assert "KPI≥85" not in answer
+    assert "主导或核心参与≥3" not in answer
 
 
 def test_department_projects_normalizes_paused_status():

@@ -68,7 +68,9 @@ def search_knowledge(root_path: Path, query: str, *, limit: int = 3) -> list[Evi
     scored: list[tuple[int, str, Evidence]] = []
     for path in sorted(root_path.rglob("*.md")):
         relative = path.relative_to(root_path).as_posix()
-        for heading, content in _split_markdown(path):
+        path_chunks = _split_markdown(path)
+        local_scored: list[tuple[int, str, Evidence]] = []
+        for heading, content in path_chunks:
             text = f"{relative} {heading} {content}"
             lowered_text = text.lower()
             if required_terms and not required_terms <= set(ALNUM_PATTERN.findall(lowered_text)):
@@ -77,7 +79,7 @@ def search_knowledge(root_path: Path, query: str, *, limit: int = 3) -> list[Evi
             score = len(query_tokens & _tokens(text))
             score += sum(3 for phrase in query_phrases if phrase in text)
             if score >= 2:
-                scored.append(
+                local_scored.append(
                     (
                         score,
                         relative,
@@ -90,5 +92,22 @@ def search_knowledge(root_path: Path, query: str, *, limit: int = 3) -> list[Evi
                         ),
                     )
                 )
+        if relative.startswith("meeting_notes/") and local_scored:
+            best_score = max(item[0] for item in local_scored)
+            whole_file = path.read_text(encoding="utf-8").strip()
+            scored.append(
+                (
+                    best_score + 1,
+                    relative,
+                    Evidence(
+                        kind="kb",
+                        source=f"{relative} file",
+                        locator=relative,
+                        content=whole_file,
+                        data={"score": best_score + 1, "recall": "file"},
+                    ),
+                )
+            )
+        scored.extend(local_scored)
     scored.sort(key=lambda item: (-item[0], item[1]))
     return [item[2] for item in scored[:limit]]

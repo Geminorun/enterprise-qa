@@ -53,6 +53,19 @@ def test_rejects_disallowed_employee_field():
         validate_plan(plan)
 
 
+def test_defaults_employee_basic_field_to_name_for_lookup():
+    plan = QueryPlan(
+        source_type="db",
+        template="employee_basic",
+        params={"employee_id": "EMP-999"},
+        output_mode="summary",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.params["field"] == "name"
+
+
 def test_rejects_employee_template_without_employee_locator():
     plan = QueryPlan(
         source_type="db",

@@ -96,6 +96,14 @@ def _format_promotion_answer(plan: QueryPlan, evidences: list[Evidence], current
     from_level = str(plan.params.get("from_level", current_level))
     to_level = str(plan.params.get("to_level", "目标职级"))
 
+    if (from_level, to_level) != ("P5", "P6"):
+        return (
+            f"{name}当前职级是 {current_level}，关于 {from_level} 晋升 {to_level}，"
+            "当前规则引擎暂不支持自动判定。已找到相关事实和规则来源，"
+            "但为避免套用错误晋升口径，这里不输出符合/不符合结论。"
+            f"\n\n{_source_block(evidences)}"
+        )
+
     failures: list[str] = []
     unknowns: list[str] = []
     checks: list[str] = []
