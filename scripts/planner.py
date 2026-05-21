@@ -22,7 +22,7 @@ PLAN_PROMPT = """你是企业问答系统的查询规划器。你只能输出 JS
 可选 template:
 employee_basic, employee_manager, department_members, employee_projects, department_projects,
 project_members, attendance_stats, performance_summary, department_performance_summary,
-promotion_eligibility, kb_search, recent_events, unknown
+promotion_eligibility, attendance_policy_check, leave_entitlement_check, kb_search, recent_events, unknown
 
 template 参数约束：
 - employee_basic params: employee_name 或 employee_id 必填；field 必填且只能是 department/email/level/hire_date/status/name。
@@ -32,6 +32,8 @@ template 参数约束：
 - department_projects params: department 可选；status 可选，优先使用 active/planning/completed/on_hold，支持单个状态或状态数组。
 - project_members params: project_id 或 project_name 必填。
 - attendance_stats params: employee_name 或 employee_id 必填；status 必填；date_range 可选，格式 {"start":"YYYY-MM-DD","end":"YYYY-MM-DD"}。
+- attendance_policy_check params: employee_name 或 employee_id 必填；status 必填；date_range 可选；policy_topic 可选。用于“考勤次数是否触发制度/扣款/处罚”这类混合问题，不要输出 sub_queries。
+- leave_entitlement_check params: employee_name 或 employee_id 必填；leave_type 可选，默认年假。用于“某员工有没有/是否享有年假”这类需要核实入职日期的问题。
 - performance_summary params: employee_name 或 employee_id 必填；year/quarter 可选；quarter 优先输出 1-4 的整数。
 - department_performance_summary params: department 或 employee_name 必填；year 必填；scope 可选。
 - promotion_eligibility params: employee_name 或 employee_id 必填；from_level/to_level 可选。
@@ -41,9 +43,13 @@ template 参数约束：
 
 字段映射示例：
 - “张三的部门是什么？” -> {"source_type":"db","template":"employee_basic","params":{"employee_name":"张三","field":"department"},"output_mode":"summary"}
+- “CEO 的邮箱是多少？” -> {"source_type":"db","template":"employee_basic","params":{"employee_name":"CEO","field":"email"},"output_mode":"summary"}
 - “李四的上级是谁？” -> {"source_type":"db","template":"employee_manager","params":{"employee_name":"李四"},"output_mode":"summary"}
+- “张三的直属上级的邮箱是多少？” -> {"source_type":"db","template":"employee_manager","params":{"employee_name":"张三"},"output_mode":"summary"}
 - “PRJ-001 有哪些成员？” -> {"source_type":"db","template":"project_members","params":{"project_id":"PRJ-001"},"output_mode":"list"}
 - “张三 2 月迟到几次？” -> {"source_type":"db","template":"attendance_stats","params":{"employee_name":"张三","status":"late","date_range":{"start":"2026-02-01","end":"2026-02-28"}},"output_mode":"count"}
+- “王五上个月迟到超过扣款线了吗？” -> {"source_type":"hybrid","template":"attendance_policy_check","params":{"employee_name":"王五","status":"late","date_range":{"start":"2026-02-01","end":"2026-02-28"},"policy_topic":"迟到规则"},"output_mode":"summary"}
+- “入职未满一年的吴十有年假吗？” -> {"source_type":"hybrid","template":"leave_entitlement_check","params":{"employee_name":"吴十","leave_type":"年假"},"output_mode":"summary"}
 - “张三 2025 Q2 绩效如何？” -> {"source_type":"db","template":"performance_summary","params":{"employee_name":"张三","year":2025,"quarter":2},"output_mode":"summary"}
 - “年假怎么计算？” -> {"source_type":"kb","template":"kb_search","params":{"query":"年假怎么计算"},"output_mode":"summary"}
 

@@ -38,6 +38,10 @@ def execute_db_plan(db_path: Path, plan: QueryPlan) -> list[Evidence]:
             return _project_members(conn, plan)
         if plan.template == "attendance_stats":
             return _attendance_stats(conn, plan)
+        if plan.template == "attendance_policy_check":
+            return _attendance_stats(conn, plan)
+        if plan.template == "leave_entitlement_check":
+            return _leave_entitlement_facts(conn, plan)
         if plan.template == "performance_summary":
             return _performance_summary(conn, plan)
         if plan.template == "department_performance_summary":
@@ -74,7 +78,8 @@ def _employee_manager(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidenc
     condition, value = _employee_filter(plan.params)
     row = conn.execute(
         f"""
-        SELECT e.employee_id, e.name, m.employee_id AS manager_id, m.name AS manager_name
+        SELECT e.employee_id, e.name, m.employee_id AS manager_id, m.name AS manager_name,
+               m.email AS manager_email
         FROM employees e
         LEFT JOIN employees m ON m.employee_id = e.manager_id
         WHERE {condition} AND e.status = 'active'
@@ -88,7 +93,7 @@ def _employee_manager(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidenc
             kind="db",
             source="employees 表",
             locator=f"employee_id: {row['employee_id']}",
-            content=f"{row['name']} 的直属上级是 {row['manager_name']}",
+            content=f"{row['name']} 的直属上级是 {row['manager_name']}，邮箱是 {row['manager_email']}",
             data=dict(row),
         )
     ]
@@ -241,14 +246,38 @@ def _attendance_stats(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidenc
         (value, status, start, end),
     ).fetchone()
     count = 0 if row is None else row["count"]
-    name = str(plan.params.get("employee_name", plan.params.get("employee_id", "")))
+    name = str(row["name"] if row is not None else plan.params.get("employee_name", plan.params.get("employee_id", "")))
     return [
         Evidence(
             kind="db",
             source="attendance 表 + employees 表",
             content=f"{name} 在 {start} 至 {end} 的 {status} 次数为 {count}",
             locator=None,
-            data={"count": count, "start": start, "end": end, "status": status},
+            data={"name": name, "count": count, "start": start, "end": end, "status": status},
+        )
+    ]
+
+
+def _leave_entitlement_facts(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
+    condition, value = _employee_filter(plan.params)
+    row = conn.execute(
+        f"""
+        SELECT e.employee_id, e.name, e.hire_date
+        FROM employees e
+        WHERE {condition} AND e.status = 'active'
+        """,
+        (value,),
+    ).fetchone()
+    if row is None:
+        return []
+    leave_type = str(plan.params.get("leave_type", "年假"))
+    return [
+        Evidence(
+            kind="db",
+            source="employees 表",
+            locator=f"employee_id: {row['employee_id']}",
+            content=f"{row['name']} 入职日期为 {row['hire_date']}",
+            data={**dict(row), "leave_type": leave_type},
         )
     ]
 

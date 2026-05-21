@@ -21,6 +21,7 @@ def test_employee_manager():
     evidence = execute_db_plan(DB_PATH, QueryPlan("db", "employee_manager", {"employee_name": "李四"}))
 
     assert evidence[0].data["manager_name"] == "CEO"
+    assert evidence[0].data["manager_email"] == "ceo@company.com"
 
 
 def test_employee_projects():
@@ -78,6 +79,34 @@ def test_attendance_stats():
     )
 
     assert evidence[0].data["count"] == 2
+
+
+def test_attendance_policy_check_uses_attendance_stats():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan(
+            "hybrid",
+            "attendance_policy_check",
+            {
+                "employee_name": "王五",
+                "status": "late",
+                "date_range": {"start": "2026-02-01", "end": "2026-02-28"},
+            },
+        ),
+    )
+
+    assert evidence[0].data["name"] == "王五"
+    assert evidence[0].data["count"] == 5
+
+
+def test_leave_entitlement_check_returns_hire_date():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan("hybrid", "leave_entitlement_check", {"employee_name": "吴十", "leave_type": "年假"}),
+    )
+
+    assert evidence[0].data["name"] == "吴十"
+    assert evidence[0].data["hire_date"] == "2025-07-01"
 
 
 def test_promotion_facts_for_wangwu():

@@ -34,7 +34,10 @@ def test_parse_plan_json_wraps_invalid_json():
 def test_plan_prompt_includes_template_parameter_contracts():
     assert "employee_basic params" in PLAN_PROMPT
     assert "employee_name 或 employee_id" in PLAN_PROMPT
+    assert "attendance_policy_check params" in PLAN_PROMPT
+    assert "leave_entitlement_check params" in PLAN_PROMPT
     assert "project_members params" in PLAN_PROMPT
+    assert "CEO 的邮箱是多少" in PLAN_PROMPT
     assert "示例" in PLAN_PROMPT
 
 

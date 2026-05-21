@@ -27,6 +27,12 @@ def _execute_plan(plan: QueryPlan, db_path: Path, kb_path: Path) -> list[Evidenc
         return []
     if plan.source_type == "kb" or plan.template == "kb_search":
         return search_knowledge(kb_path, str(plan.params.get("query", plan.params.get("topic", ""))))
+    if plan.template == "attendance_policy_check":
+        policy_topic = str(plan.params.get("policy_topic", "迟到规则"))
+        return execute_db_plan(db_path, plan) + search_knowledge(kb_path, policy_topic)
+    if plan.template == "leave_entitlement_check":
+        leave_type = str(plan.params.get("leave_type", "年假"))
+        return execute_db_plan(db_path, plan) + search_knowledge(kb_path, f"{leave_type} 制度")
     if plan.template == "promotion_eligibility":
         from_level = str(plan.params.get("from_level", "P5"))
         to_level = str(plan.params.get("to_level", "P6"))

@@ -35,6 +35,33 @@ def test_t02_lisi_manager():
     assert "CEO" in answer
 
 
+def test_manager_email_question_returns_manager_email():
+    answer = answer_question(
+        "张三的直属上级的邮箱是多少？",
+        planner=FakePlanner(QueryPlan("db", "employee_manager", {"employee_name": "张三"})),
+        polish_client=None,
+    )
+
+    assert "CEO" in answer
+    assert "ceo@company.com" in answer
+
+
+def test_ceo_employee_basic_email_and_department():
+    email_answer = answer_question(
+        "CEO 的邮箱是多少？",
+        planner=FakePlanner(QueryPlan("db", "employee_basic", {"employee_name": "CEO", "field": "email"})),
+        polish_client=None,
+    )
+    department_answer = answer_question(
+        "CEO 的部门是什么？",
+        planner=FakePlanner(QueryPlan("db", "employee_basic", {"employee_name": "CEO", "field": "department"})),
+        polish_client=None,
+    )
+
+    assert "ceo@company.com" in email_answer
+    assert "管理层" in department_answer
+
+
 def test_t03_annual_leave():
     answer = answer_question(
         "年假怎么计算？",
@@ -120,6 +147,82 @@ def test_t08_zhangsan_late_count():
     )
 
     assert "2" in answer
+
+
+def test_attendance_policy_check_wangwu_exceeds_penalty_line():
+    answer = answer_question(
+        "王五上个月迟到超过扣款线了吗？",
+        planner=FakePlanner(
+            QueryPlan(
+                "hybrid",
+                "attendance_policy_check",
+                {
+                    "employee_name": "王五",
+                    "status": "late",
+                    "date_range": {"start": "2026-02-01", "end": "2026-02-28"},
+                    "policy_topic": "迟到规则",
+                },
+            )
+        ),
+        polish_client=None,
+    )
+
+    assert "王五" in answer
+    assert "5 次" in answer
+    assert "4-6 次" in answer
+    assert "50 元" in answer
+    assert "hr_policies.md" in answer
+
+
+def test_attendance_policy_check_zhangsan_not_exceeds_penalty_line():
+    answer = answer_question(
+        "张三上个月迟到超过扣款线了吗？",
+        planner=FakePlanner(
+            QueryPlan(
+                "hybrid",
+                "attendance_policy_check",
+                {
+                    "employee_name": "张三",
+                    "status": "late",
+                    "date_range": {"start": "2026-02-01", "end": "2026-02-28"},
+                    "policy_topic": "迟到规则",
+                },
+            )
+        ),
+        polish_client=None,
+    )
+
+    assert "张三" in answer
+    assert "2 次" in answer
+    assert "未超过扣款线" in answer
+    assert "不扣款" in answer
+
+
+def test_leave_entitlement_check_wushi_uses_hire_date():
+    answer = answer_question(
+        "入职未满一年的吴十有年假吗？",
+        planner=FakePlanner(QueryPlan("hybrid", "leave_entitlement_check", {"employee_name": "吴十", "leave_type": "年假"})),
+        polish_client=None,
+    )
+
+    assert "吴十" in answer
+    assert "2025-07-01" in answer
+    assert "未满 1 年" in answer
+    assert "没有年假" in answer
+    assert "hr_policies.md" in answer
+
+
+def test_leave_entitlement_check_zhangsan_rejects_wrong_premise():
+    answer = answer_question(
+        "入职未满一年的张三有年假吗？",
+        planner=FakePlanner(QueryPlan("hybrid", "leave_entitlement_check", {"employee_name": "张三", "leave_type": "年假"})),
+        polish_client=None,
+    )
+
+    assert "张三" in answer
+    assert "2023-06-15" in answer
+    assert "已满 1 年" in answer
+    assert "有年假" in answer
 
 
 def test_t09_missing_employee():

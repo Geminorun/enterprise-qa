@@ -18,6 +18,8 @@ SAFE_TEMPLATES: dict[str, set[str]] = {
     "department_projects": {"department", "status"},
     "project_members": {"project_id", "project_name"},
     "attendance_stats": {"employee_name", "employee_id", "date_range", "status"},
+    "attendance_policy_check": {"employee_name", "employee_id", "date_range", "status", "policy_topic"},
+    "leave_entitlement_check": {"employee_name", "employee_id", "leave_type"},
     "performance_summary": {"employee_name", "employee_id", "year", "quarter"},
     "department_performance_summary": {"employee_name", "department", "year", "scope"},
     "promotion_eligibility": {"employee_name", "employee_id", "from_level", "to_level"},
@@ -34,6 +36,8 @@ REQUIRED_PARAMS: dict[str, set[str]] = {
     "department_projects": set(),
     "project_members": set(),
     "attendance_stats": {"status"},
+    "attendance_policy_check": {"status"},
+    "leave_entitlement_check": set(),
     "performance_summary": set(),
     "department_performance_summary": {"year"},
     "promotion_eligibility": set(),
@@ -47,6 +51,8 @@ REQUIRED_ANY_PARAMS: dict[str, tuple[str, ...]] = {
     "employee_manager": ("employee_name", "employee_id"),
     "employee_projects": ("employee_name", "employee_id"),
     "attendance_stats": ("employee_name", "employee_id"),
+    "attendance_policy_check": ("employee_name", "employee_id"),
+    "leave_entitlement_check": ("employee_name", "employee_id"),
     "performance_summary": ("employee_name", "employee_id"),
     "promotion_eligibility": ("employee_name", "employee_id"),
     "department_performance_summary": ("employee_name", "department"),
@@ -55,6 +61,25 @@ REQUIRED_ANY_PARAMS: dict[str, tuple[str, ...]] = {
 
 EMPLOYEE_FIELDS = {"department", "email", "level", "hire_date", "status", "name"}
 EMPLOYEE_STATUS_TEMPLATES = {"department_members"}
+ATTENDANCE_STATUS_TEMPLATES = {"attendance_stats", "attendance_policy_check"}
+ATTENDANCE_STATUS_ALIASES = {
+    "on_time": "on_time",
+    "on time": "on_time",
+    "准时": "on_time",
+    "正常": "on_time",
+    "late": "late",
+    "迟到": "late",
+    "遲到": "late",
+    "absent": "absent",
+    "缺勤": "absent",
+    "旷工": "absent",
+    "曠工": "absent",
+    "on_leave": "on_leave",
+    "on leave": "on_leave",
+    "请假": "on_leave",
+    "請假": "on_leave",
+    "休假": "on_leave",
+}
 EMPLOYEE_STATUS_ALIASES = {
     "active": "active",
     "在职": "active",
@@ -180,6 +205,16 @@ def _normalize_employee_status(value: Any) -> str:
     return normalized
 
 
+def _normalize_attendance_status(value: Any) -> str:
+    if not isinstance(value, str):
+        raise PlanValidationError(f"不支持的考勤状态：{value}")
+    key = value.strip().lower().replace("_", " ")
+    normalized = ATTENDANCE_STATUS_ALIASES.get(key)
+    if normalized is None:
+        raise PlanValidationError(f"不支持的考勤状态：{value}")
+    return normalized
+
+
 def _normalize_params(plan: QueryPlan) -> dict[str, Any]:
     params = dict(plan.params)
     if plan.template == "employee_basic" and "field" not in params:
@@ -190,6 +225,8 @@ def _normalize_params(plan: QueryPlan) -> dict[str, Any]:
         params["status"] = _normalize_project_status(params["status"])
     if plan.template in EMPLOYEE_STATUS_TEMPLATES and "status" in params:
         params["status"] = _normalize_employee_status(params["status"])
+    if plan.template in ATTENDANCE_STATUS_TEMPLATES and "status" in params:
+        params["status"] = _normalize_attendance_status(params["status"])
     return params
 
 

@@ -78,6 +78,53 @@ def test_rejects_employee_template_without_employee_locator():
         validate_plan(plan)
 
 
+def test_accepts_attendance_policy_check_and_normalizes_late_status():
+    plan = QueryPlan(
+        source_type="hybrid",
+        template="attendance_policy_check",
+        params={
+            "employee_name": "王五",
+            "status": "迟到",
+            "date_range": {"start": "2026-02-01", "end": "2026-02-28"},
+            "policy_topic": "迟到规则",
+        },
+        output_mode="summary",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.params["status"] == "late"
+
+
+def test_rejects_attendance_policy_check_sub_queries():
+    plan = QueryPlan(
+        source_type="hybrid",
+        template="attendance_policy_check",
+        params={
+            "employee_name": "王五",
+            "status": "late",
+            "sub_queries": [{"template": "attendance_stats"}],
+        },
+        output_mode="summary",
+    )
+
+    with pytest.raises(PlanValidationError, match="查询参数不被允许"):
+        validate_plan(plan)
+
+
+def test_accepts_leave_entitlement_check_with_employee_locator():
+    plan = QueryPlan(
+        source_type="hybrid",
+        template="leave_entitlement_check",
+        params={"employee_name": "吴十", "leave_type": "年假"},
+        output_mode="summary",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.template == "leave_entitlement_check"
+
+
 def test_rejects_project_members_without_project_locator():
     plan = QueryPlan(
         source_type="db",

@@ -50,6 +50,19 @@ def _years_between(start: object, end: date) -> float | None:
     return round((end - start_date).days / 365.25, 1)
 
 
+def _full_years_between(start: object, end: date) -> int | None:
+    if not isinstance(start, str):
+        return None
+    try:
+        start_date = date.fromisoformat(start)
+    except ValueError:
+        return None
+    years = end.year - start_date.year
+    if (end.month, end.day) < (start_date.month, start_date.day):
+        years -= 1
+    return max(years, 0)
+
+
 def _has_consecutive_kpi(reviews: list[dict], threshold: float, required_count: int) -> bool:
     best_run = 0
     current_run = 0
@@ -189,6 +202,67 @@ def _employee_status_label(status: object) -> str:
     return labels.get(str(status), str(status))
 
 
+def _format_employee_manager(evidences: list[Evidence]) -> str:
+    data = evidences[0].data
+    employee_name = data.get("name", "该员工")
+    manager_name = data.get("manager_name") or "未记录"
+    manager_email = data.get("manager_email")
+    if manager_email:
+        return f"{employee_name}的直属上级是 {manager_name}，邮箱是 {manager_email}。\n\n{_source_block(evidences)}"
+    return f"{employee_name}的直属上级是 {manager_name}。\n\n{_source_block(evidences)}"
+
+
+def _format_attendance_policy_check(evidences: list[Evidence]) -> str:
+    attendance = next((item for item in evidences if item.source == "attendance 表 + employees 表"), evidences[0])
+    data = attendance.data
+    name = data.get("name", "该员工")
+    count = int(data.get("count") or 0)
+    start = data.get("start")
+    end = data.get("end")
+    status = data.get("status")
+    if status != "late":
+        return (
+            f"{name}在 {start} 至 {end} 的{status}记录为 {count} 次；"
+            "当前仅支持对迟到扣款规则做确定性判断。"
+            f"\n\n{_source_block(evidences)}"
+        )
+    if count <= 3:
+        result = f"未超过扣款线，月累计迟到 {count} 次属于 3 次以内，不扣款，口头提醒。"
+    elif count <= 6:
+        result = f"已超过扣款线，月累计迟到 {count} 次落在 4-6 次扣款档，每次扣款 50 元。"
+    else:
+        result = f"已超过扣款线，月累计迟到 {count} 次达到 7 次以上，视为旷工 1 天并通报批评。"
+    return f"{name}在 {start} 至 {end} 迟到 {count} 次，{result}\n\n{_source_block(evidences)}"
+
+
+def _format_leave_entitlement_check(evidences: list[Evidence], current_date: str | None) -> str:
+    employee = next((item for item in evidences if item.source == "employees 表"), None)
+    if employee is None:
+        return f"未找到该员工的入职日期，无法判定年假资格。\n\n{_source_block(evidences)}"
+    data = employee.data
+    name = data.get("name", "该员工")
+    hire_date = data.get("hire_date")
+    leave_type = data.get("leave_type", "年假")
+    today = _as_date(current_date)
+    full_years = _full_years_between(hire_date, today)
+    if leave_type != "年假":
+        return f"{name}的{leave_type}资格当前没有专用判定规则。\n\n{_source_block(evidences)}"
+    if full_years is None:
+        return f"{name}的入职日期不可解析，无法判定年假资格。\n\n{_source_block(evidences)}"
+    if full_years < 1:
+        return (
+            f"{name}入职日期是 {hire_date}，截至 {today.isoformat()} 未满 1 年，"
+            "按年假制度没有年假。"
+            f"\n\n{_source_block(evidences)}"
+        )
+    days = min(15, 5 + full_years - 1)
+    return (
+        f"{name}入职日期是 {hire_date}，截至 {today.isoformat()} 已满 1 年，"
+        f"按年假制度有年假，当前可按约 {days} 天估算。"
+        f"\n\n{_source_block(evidences)}"
+    )
+
+
 def format_fallback_answer(
     question: str,
     plan: QueryPlan,
@@ -208,6 +282,9 @@ def format_fallback_answer(
         name = data.get("name", plan.params.get("employee_name", "该员工"))
         return f"{name}的{field}是 {value}。\n\n> 来源：{_sources(evidences)}"
 
+    if plan.template == "employee_manager":
+        return _format_employee_manager(evidences)
+
     if plan.template == "department_members":
         data = evidences[0].data
         names = "、".join(item["name"] for item in data.get("members", []))
@@ -217,6 +294,12 @@ def format_fallback_answer(
     if plan.template == "attendance_stats":
         data = evidences[0].data
         return f"查询时间范围内，匹配的考勤记录共有 {data['count']} 次。\n\n> 来源：{_sources(evidences)}"
+
+    if plan.template == "attendance_policy_check":
+        return _format_attendance_policy_check(evidences)
+
+    if plan.template == "leave_entitlement_check":
+        return _format_leave_entitlement_check(evidences, current_date)
 
     if plan.template == "promotion_eligibility":
         return _format_promotion_answer(plan, evidences, current_date)
@@ -268,7 +351,12 @@ def build_answer(
     answer_polish: bool,
     current_date: str | None = None,
 ) -> str:
-    if plan.template in {"promotion_eligibility", "department_performance_summary"}:
+    if plan.template in {
+        "promotion_eligibility",
+        "department_performance_summary",
+        "attendance_policy_check",
+        "leave_entitlement_check",
+    }:
         return format_fallback_answer(question, plan, evidences, current_date=current_date)
 
     if client is not None and answer_polish and evidences:
