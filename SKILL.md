@@ -30,20 +30,22 @@ This skill can query:
 
 ## Run
 
-From this skill directory, run:
+Always run the bundled CLI from the skill directory:
 
 ```bash
-python -X utf8 scripts/cli.py "张三的部门是什么？"
+cd "$HOME/.claude/skills/enterprise-qa" && python -X utf8 scripts/cli.py "张三的部门是什么？"
 ```
 
 More examples:
 
 ```bash
-python -X utf8 scripts/cli.py "张三的直属上级的邮箱是多少？"
-python -X utf8 scripts/cli.py "王五上个月迟到超过扣款线了吗？"
-python -X utf8 scripts/cli.py "入职未满一年的吴十有年假吗？"
-python -X utf8 scripts/cli.py "3 月全员大会说了什么？"
+cd "$HOME/.claude/skills/enterprise-qa" && python -X utf8 scripts/cli.py "张三的直属上级的邮箱是多少？"
+cd "$HOME/.claude/skills/enterprise-qa" && python -X utf8 scripts/cli.py "王五上个月迟到超过扣款线了吗？"
+cd "$HOME/.claude/skills/enterprise-qa" && python -X utf8 scripts/cli.py "入职未满一年的吴十有年假吗？"
+cd "$HOME/.claude/skills/enterprise-qa" && python -X utf8 scripts/cli.py "3 月全员大会说了什么？"
 ```
+
+Do not run `python -c`, `sqlite3`, ad hoc SQL, or direct database-inspection commands for user questions. The CLI already handles QueryPlan routing, validation, safe SQLite access, knowledge search, formatting, and citations.
 
 ## Configuration
 
