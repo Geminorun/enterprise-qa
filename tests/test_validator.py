@@ -1,0 +1,53 @@
+import pytest
+
+from scripts.intent import QueryPlan
+from scripts.validator import PlanValidationError, validate_plan
+
+
+def test_validate_employee_projects_plan():
+    plan = QueryPlan(
+        source_type="db",
+        template="employee_projects",
+        params={"employee_name": "张三"},
+        output_mode="list",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.template == "employee_projects"
+
+
+def test_rejects_unknown_template():
+    plan = QueryPlan(
+        source_type="db",
+        template="free_sql",
+        params={},
+        output_mode="list",
+    )
+
+    with pytest.raises(PlanValidationError, match="不支持的查询模板"):
+        validate_plan(plan)
+
+
+def test_rejects_sql_like_question_param():
+    plan = QueryPlan(
+        source_type="db",
+        template="employee_basic",
+        params={"employee_name": "SELECT * FROM users", "field": "department"},
+        output_mode="summary",
+    )
+
+    with pytest.raises(PlanValidationError, match="疑似不安全输入"):
+        validate_plan(plan)
+
+
+def test_rejects_disallowed_employee_field():
+    plan = QueryPlan(
+        source_type="db",
+        template="employee_basic",
+        params={"employee_name": "张三", "field": "teacher"},
+        output_mode="summary",
+    )
+
+    with pytest.raises(PlanValidationError, match="不支持的员工字段"):
+        validate_plan(plan)
