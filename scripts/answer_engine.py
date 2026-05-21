@@ -96,6 +96,25 @@ def _format_meeting_notes_answer(evidences: list[Evidence]) -> str:
     return "会议纪要要点：\n" + "\n".join(f"- {item}" for item in summaries) + f"\n\n{_source_block(evidences)}"
 
 
+def _format_recent_events(evidences: list[Evidence]) -> str:
+    meeting_evidences = [
+        item for item in evidences if "meeting_notes/" in item.source or "meeting_notes/" in str(item.locator)
+    ]
+    project_evidences = [
+        item for item in evidences if item.source.startswith("projects 表") and "project_id" in item.data
+    ]
+    sections: list[str] = []
+    if meeting_evidences:
+        meeting_answer = _format_meeting_notes_answer(meeting_evidences).split("> 来源：", 1)[0].strip()
+        sections.append(meeting_answer)
+    if project_evidences:
+        lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data.get('status', '未知状态')}" for item in project_evidences]
+        sections.append("相关项目：\n" + "\n".join(lines))
+    if not sections:
+        sections = [item.content for item in evidences]
+    return "\n\n".join(sections) + f"\n\n{_source_block(evidences)}"
+
+
 def _as_date(value: str | None) -> date:
     if value:
         try:
@@ -370,6 +389,9 @@ def format_fallback_answer(
 
     if plan.template == "department_performance_summary":
         return _format_department_performance(evidences)
+
+    if plan.template == "recent_events":
+        return _format_recent_events(evidences)
 
     if plan.template == "employee_projects":
         lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data['role']}" for item in evidences]

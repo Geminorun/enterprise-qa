@@ -286,8 +286,9 @@ def test_t10_recent_events():
 
     assert "会议" in answer or "项目" in answer
     assert "meeting_notes" in answer
-    assert "PRJ-001" in answer
-    assert "PRJ-002" in answer
+    body = answer.split("> 来源：", 1)[0]
+    assert "PRJ-001" in body
+    assert "PRJ-002" in body
 
 
 def test_meeting_notes_fallback_summarizes_instead_of_dumping_markdown():
@@ -329,6 +330,9 @@ def test_recent_events_meeting_notes_uses_summary_not_raw_markdown():
 
     assert "代码重构" in answer
     assert "下周启动" in answer
+    body = answer.split("> 来源：", 1)[0]
+    assert "PRJ-001" in body
+    assert "PRJ-002" in body
     assert "# 2026 年 3 月技术同步会纪要" not in answer
     assert len(answer) < 1200
 
@@ -341,8 +345,9 @@ def test_recent_events_runs_by_template_when_planned_as_db():
     )
 
     assert "meeting_notes" in answer
-    assert "PRJ-001" in answer
-    assert "PRJ-002" in answer
+    body = answer.split("> 来源：", 1)[0]
+    assert "PRJ-001" in body
+    assert "PRJ-002" in body
 
 
 def test_promotion_p6_to_p7_does_not_use_p5_to_p6_rules():
@@ -369,6 +374,18 @@ def test_promotion_without_levels_infers_next_level_rules():
     assert "promotion_rules.md" in answer
     assert "P4 → P5" in answer
     assert "P5 → P6" not in answer
+
+
+def test_promotion_missing_employee_does_not_fetch_rules():
+    answer = answer_question(
+        "EMP-999 符合晋升条件吗？",
+        planner=FakePlanner(QueryPlan("hybrid", "promotion_eligibility", {"employee_id": "EMP-999"})),
+        polish_client=None,
+    )
+
+    assert "没有" in answer or "未找到" in answer
+    assert "未知职级" not in answer
+    assert "promotion_rules.md" not in answer
 
 
 def test_department_projects_normalizes_paused_status():

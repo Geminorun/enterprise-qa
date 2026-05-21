@@ -36,6 +36,8 @@ def _execute_plan(plan: QueryPlan, db_path: Path, kb_path: Path) -> list[Evidenc
         return search_knowledge(kb_path, str(plan.params.get("query", plan.params.get("topic", ""))))
     if plan.template == "promotion_eligibility":
         db_evidence = execute_db_plan(db_path, plan)
+        if not any(item.source == "employees 表" for item in db_evidence):
+            return []
         employee = next((item.data for item in db_evidence if item.source == "employees 表"), {})
         from_level, to_level = infer_promotion_levels(plan.params, employee.get("level"))
         return db_evidence + search_knowledge(kb_path, f"{from_level} 晋升 {to_level} 条件")
