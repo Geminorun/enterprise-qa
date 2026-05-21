@@ -3,6 +3,7 @@ import sys
 
 from scripts.cli import answer_question
 from scripts.intent import QueryPlan
+from scripts.llm_client import LlmError
 
 
 class FakePlanner:
@@ -85,6 +86,7 @@ def test_t07_promotion_wangwu():
     )
 
     assert "80" in answer
+    assert "不符合" in answer
     assert "project_members 表" in answer
 
 
@@ -162,7 +164,8 @@ def test_cli_script_help_runs_from_repo_root():
     assert "Enterprise QA Skill CLI" in result.stdout
 
 
-def test_answer_question_reports_missing_llm_provider(monkeypatch):
+def test_answer_question_reports_missing_llm_provider(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENTERPRISE_QA_CONFIG_PATH", str(tmp_path / "missing-config.yaml"))
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.delenv("SILICONFLOW_API_KEY", raising=False)
 
@@ -170,3 +173,15 @@ def test_answer_question_reports_missing_llm_provider(monkeypatch):
 
     assert "LLM" in answer
     assert "不能生成查询计划" in answer
+
+
+class BadPlanner:
+    def __call__(self, question, context):
+        raise LlmError("无效 JSON：Expecting value")
+
+
+def test_answer_question_reports_invalid_planner_json():
+    answer = answer_question("张三的部门是什么？", planner=BadPlanner())
+
+    assert "不能生成查询计划" in answer
+    assert "无效 JSON" in answer

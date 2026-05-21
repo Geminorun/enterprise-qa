@@ -34,6 +34,8 @@ def execute_db_plan(db_path: Path, plan: QueryPlan) -> list[Evidence]:
             return _employee_projects(conn, plan)
         if plan.template == "department_projects":
             return _department_projects(conn, plan)
+        if plan.template == "project_members":
+            return _project_members(conn, plan)
         if plan.template == "attendance_stats":
             return _attendance_stats(conn, plan)
         if plan.template == "performance_summary":
@@ -167,6 +169,38 @@ def _department_projects(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evid
     ]
 
 
+def _project_members(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
+    if "project_id" in plan.params:
+        condition = "p.project_id = ?"
+        value = str(plan.params["project_id"])
+    else:
+        condition = "p.name = ?"
+        value = str(plan.params["project_name"])
+
+    rows = conn.execute(
+        f"""
+        SELECT p.project_id, p.name AS project_name, p.status, e.employee_id, e.name AS employee_name,
+               e.department, pm.role, pm.join_date
+        FROM projects p
+        JOIN project_members pm ON pm.project_id = p.project_id
+        JOIN employees e ON e.employee_id = pm.employee_id
+        WHERE {condition} AND e.status = 'active'
+        ORDER BY pm.role = 'lead' DESC, e.employee_id
+        """,
+        (value,),
+    ).fetchall()
+    return [
+        Evidence(
+            kind="db",
+            source="projects 表 + project_members 表 + employees 表",
+            content=f"{row['project_id']} {row['project_name']} 成员 {row['employee_name']}，角色 {row['role']}",
+            locator=f"project_id: {row['project_id']}, employee_id: {row['employee_id']}",
+            data=dict(row),
+        )
+        for row in rows
+    ]
+
+
 def _attendance_stats(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
     condition, value = _employee_filter(plan.params)
     date_range = plan.params.get("date_range", {})
@@ -265,10 +299,15 @@ def _department_performance_summary(conn: sqlite3.Connection, plan: QueryPlan) -
 
 
 def _promotion_facts(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
-    employee_name = str(plan.params["employee_name"])
+    if "employee_id" in plan.params:
+        condition = "employee_id = ?"
+        value = str(plan.params["employee_id"])
+    else:
+        condition = "name = ?"
+        value = str(plan.params["employee_name"])
     employee = conn.execute(
-        "SELECT employee_id, name, level, hire_date FROM employees WHERE name = ? AND status = 'active'",
-        (employee_name,),
+        f"SELECT employee_id, name, level, hire_date FROM employees WHERE {condition} AND status = 'active'",
+        (value,),
     ).fetchone()
     if employee is None:
         return []

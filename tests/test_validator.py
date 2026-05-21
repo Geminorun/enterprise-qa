@@ -51,3 +51,27 @@ def test_rejects_disallowed_employee_field():
 
     with pytest.raises(PlanValidationError, match="不支持的员工字段"):
         validate_plan(plan)
+
+
+def test_rejects_employee_template_without_employee_locator():
+    plan = QueryPlan(
+        source_type="db",
+        template="employee_projects",
+        params={},
+        output_mode="list",
+    )
+
+    with pytest.raises(PlanValidationError, match="缺少必要定位参数"):
+        validate_plan(plan)
+
+
+def test_rejects_project_members_without_project_locator():
+    plan = QueryPlan(
+        source_type="db",
+        template="project_members",
+        params={},
+        output_mode="list",
+    )
+
+    with pytest.raises(PlanValidationError, match="缺少必要定位参数"):
+        validate_plan(plan)

@@ -42,6 +42,25 @@ def format_fallback_answer(question: str, plan: QueryPlan, evidences: list[Evide
         data = evidences[0].data
         return f"查询时间范围内，匹配的考勤记录共有 {data['count']} 次。\n\n> 来源：{_sources(evidences)}"
 
+    if plan.template == "promotion_eligibility":
+        combined = {item.source: item.data for item in evidences}
+        employee = combined.get("employees 表", {})
+        reviews = combined.get("performance_reviews 表", {})
+        projects = combined.get("project_members 表", {})
+        average_kpi = reviews.get("average_kpi")
+        project_count = projects.get("project_count", 0)
+        from_level = plan.params.get("from_level", employee.get("level", "当前职级"))
+        to_level = plan.params.get("to_level", "目标职级")
+        kpi_ok = average_kpi is not None and float(average_kpi) >= 85
+        project_ok = int(project_count or 0) >= 3
+        result = "符合" if kpi_ok and project_ok else "不符合"
+        name = employee.get("name", plan.params.get("employee_name", "该员工"))
+        return (
+            f"{name}目前{result} {from_level} 晋升 {to_level} 条件。"
+            f"平均 KPI 为 {average_kpi}，项目参与数为 {project_count}。"
+            f"\n\n> 来源：{_sources(evidences)}"
+        )
+
     if plan.template == "employee_projects":
         lines = [f"- {item.data['project_id']} {item.data['name']}：{item.data['role']}" for item in evidences]
         return "相关项目如下：\n" + "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"

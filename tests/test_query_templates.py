@@ -30,6 +30,13 @@ def test_employee_projects():
     assert project_ids == {"PRJ-001", "PRJ-002", "PRJ-003", "PRJ-004"}
 
 
+def test_project_members():
+    evidence = execute_db_plan(DB_PATH, QueryPlan("db", "project_members", {"project_id": "PRJ-001"}))
+    names = {item.data["employee_name"] for item in evidence}
+
+    assert names == {"张三", "李四", "钱七"}
+
+
 def test_attendance_stats():
     evidence = execute_db_plan(
         DB_PATH,

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+from json import JSONDecodeError
 import re
 from typing import Any
 
 from scripts.intent import QueryPlan
-from scripts.llm_client import LlmClient
+from scripts.llm_client import LlmClient, LlmError
 
 
 PLAN_PROMPT = """你是企业问答系统的查询规划器。你只能输出 JSON，不能输出 SQL。
@@ -22,6 +23,28 @@ PLAN_PROMPT = """你是企业问答系统的查询规划器。你只能输出 JS
 employee_basic, employee_manager, department_members, employee_projects, department_projects,
 project_members, attendance_stats, performance_summary, department_performance_summary,
 promotion_eligibility, kb_search, recent_events, unknown
+
+template 参数约束：
+- employee_basic params: employee_name 或 employee_id 必填；field 必填且只能是 department/email/level/hire_date/status/name。
+- employee_manager params: employee_name 或 employee_id 必填。
+- department_members params: department 必填；status 可选。
+- employee_projects params: employee_name 或 employee_id 必填；status 可选。
+- department_projects params: department 必填；status 可选。
+- project_members params: project_id 或 project_name 必填。
+- attendance_stats params: employee_name 或 employee_id 必填；status 必填；date_range 可选，格式 {"start":"YYYY-MM-DD","end":"YYYY-MM-DD"}。
+- performance_summary params: employee_name 或 employee_id 必填；year/quarter 可选。
+- department_performance_summary params: department 或 employee_name 必填；year 必填；scope 可选。
+- promotion_eligibility params: employee_name 或 employee_id 必填；from_level/to_level 可选。
+- kb_search params: query 必填，topic 可选。
+- recent_events params: query/date_range 可选。
+- unknown params: reason 可选。
+
+字段映射示例：
+- “张三的部门是什么？” -> {"source_type":"db","template":"employee_basic","params":{"employee_name":"张三","field":"department"},"output_mode":"summary"}
+- “李四的上级是谁？” -> {"source_type":"db","template":"employee_manager","params":{"employee_name":"李四"},"output_mode":"summary"}
+- “PRJ-001 有哪些成员？” -> {"source_type":"db","template":"project_members","params":{"project_id":"PRJ-001"},"output_mode":"list"}
+- “张三 2 月迟到几次？” -> {"source_type":"db","template":"attendance_stats","params":{"employee_name":"张三","status":"late","date_range":{"start":"2026-02-01","end":"2026-02-28"}},"output_mode":"count"}
+- “年假怎么计算？” -> {"source_type":"kb","template":"kb_search","params":{"query":"年假怎么计算"},"output_mode":"summary"}
 
 输出字段：
 source_type: db | kb | hybrid | unknown
@@ -41,7 +64,12 @@ def parse_plan_json(content: str) -> QueryPlan:
     if match:
         stripped = match.group(1).strip()
 
-    data: dict[str, Any] = json.loads(stripped)
+    try:
+        data: dict[str, Any] = json.loads(stripped)
+    except JSONDecodeError as exc:
+        raise LlmError(f"无效 JSON：{exc}") from exc
+    if not isinstance(data, dict):
+        raise LlmError("无效 JSON：顶层结构必须是 object")
     return QueryPlan(
         source_type=data.get("source_type", "unknown"),
         template=data.get("template", "unknown"),

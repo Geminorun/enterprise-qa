@@ -42,6 +42,18 @@ REQUIRED_PARAMS: dict[str, set[str]] = {
     "unknown": set(),
 }
 
+REQUIRED_ANY_PARAMS: dict[str, tuple[str, ...]] = {
+    "employee_basic": ("employee_name", "employee_id"),
+    "employee_manager": ("employee_name", "employee_id"),
+    "employee_projects": ("employee_name", "employee_id"),
+    "attendance_stats": ("employee_name", "employee_id"),
+    "performance_summary": ("employee_name", "employee_id"),
+    "promotion_eligibility": ("employee_name", "employee_id"),
+    "department_performance_summary": ("employee_name", "department"),
+    "department_projects": ("department",),
+    "project_members": ("project_id", "project_name"),
+}
+
 EMPLOYEE_FIELDS = {"department", "email", "level", "hire_date", "status", "name"}
 UNSAFE_PATTERN = re.compile(
     r"\b(select|insert|update|delete|drop|alter|create|pragma|union)\b|--|;|'='|'1'='1",
@@ -73,6 +85,11 @@ def validate_plan(plan: QueryPlan) -> QueryPlan:
     if missing:
         names = ", ".join(sorted(missing))
         raise PlanValidationError(f"缺少必要参数：{names}")
+
+    required_any = REQUIRED_ANY_PARAMS.get(plan.template, ())
+    if required_any and not any(name in plan.params for name in required_any):
+        names = " 或 ".join(required_any)
+        raise PlanValidationError(f"缺少必要定位参数：{names}")
 
     if _contains_unsafe_value(plan.params):
         raise PlanValidationError("疑似不安全输入，已拒绝执行")

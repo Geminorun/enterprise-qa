@@ -23,6 +23,8 @@ export DEEPSEEK_API_KEY="..."
 export SILICONFLOW_API_KEY="..."
 ```
 
+也可以复制 `config.yaml.example` 为本地 `config.yaml` 后调整路径和 provider 配置。`config.yaml` 可能包含密钥，已被 `.gitignore` 忽略，不应提交。
+
 默认数据文件已经包含在 `data/` 下。
 
 ## 运行
