@@ -67,6 +67,16 @@ def test_promotion_facts_for_wangwu():
     assert combined["project_members 表"]["project_count"] == 1
 
 
+def test_promotion_facts_include_review_details():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan("hybrid", "promotion_eligibility", {"employee_name": "张三", "from_level": "P5", "to_level": "P6"}),
+    )
+    combined = {item.source: item.data for item in evidence}
+
+    assert [item["quarter"] for item in combined["performance_reviews 表"]["reviews"]] == [1, 2, 3, 4]
+
+
 def test_performance_summary_filters_by_quarter():
     evidence = execute_db_plan(
         DB_PATH,

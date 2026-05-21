@@ -319,14 +319,29 @@ def _promotion_facts(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence
     if employee is None:
         return []
 
-    reviews = conn.execute(
+    review_summary = conn.execute(
         "SELECT AVG(kpi_score) AS average_kpi, COUNT(id) AS review_count FROM performance_reviews WHERE employee_id = ?",
         (employee["employee_id"],),
     ).fetchone()
-    projects = conn.execute(
-        "SELECT COUNT(*) AS project_count FROM project_members WHERE employee_id = ?",
+    review_rows = conn.execute(
+        """
+        SELECT year, quarter, kpi_score, grade
+        FROM performance_reviews
+        WHERE employee_id = ?
+        ORDER BY year, quarter
+        """,
         (employee["employee_id"],),
-    ).fetchone()
+    ).fetchall()
+    project_rows = conn.execute(
+        """
+        SELECT p.project_id, p.name, p.status, pm.role, pm.join_date
+        FROM project_members pm
+        JOIN projects p ON p.project_id = pm.project_id
+        WHERE pm.employee_id = ?
+        ORDER BY p.project_id
+        """,
+        (employee["employee_id"],),
+    ).fetchall()
     return [
         Evidence(
             kind="db",
@@ -338,15 +353,15 @@ def _promotion_facts(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence
         Evidence(
             kind="db",
             source="performance_reviews 表",
-            content=f"{employee['name']} 平均 KPI {reviews['average_kpi']}",
+            content=f"{employee['name']} 平均 KPI {review_summary['average_kpi']}",
             locator=f"employee_id: {employee['employee_id']}",
-            data=dict(reviews),
+            data={**dict(review_summary), "reviews": [dict(row) for row in review_rows]},
         ),
         Evidence(
             kind="db",
             source="project_members 表",
-            content=f"{employee['name']} 项目数 {projects['project_count']}",
+            content=f"{employee['name']} 项目数 {len(project_rows)}",
             locator=f"employee_id: {employee['employee_id']}",
-            data=dict(projects),
+            data={"project_count": len(project_rows), "projects": [dict(row) for row in project_rows]},
         ),
     ]

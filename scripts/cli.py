@@ -64,7 +64,14 @@ def answer_question(
 
     evidences = _execute_plan(plan, config.database_path, config.knowledge_path)
     save_context(context_path, plan)
-    return build_answer(question, plan, evidences, client=llm_client, answer_polish=config.answer_polish)
+    return build_answer(
+        question,
+        plan,
+        evidences,
+        client=llm_client,
+        answer_polish=config.answer_polish,
+        current_date=config.current_date,
+    )
 
 
 def main() -> int:
