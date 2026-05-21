@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 import json
+import re
 from typing import Protocol
 
 from scripts.intent import Evidence, QueryPlan
@@ -29,6 +30,52 @@ def _append_verified_sources(answer: str, evidences: list[Evidence]) -> str:
     body_lines = [line for line in answer.strip().splitlines() if not line.strip().startswith("> 来源：")]
     body = "\n".join(body_lines).strip()
     return f"{body}\n\n{_source_block(evidences)}" if body else _source_block(evidences)
+
+
+def _clean_markdown_line(line: str) -> str:
+    line = line.strip()
+    line = re.sub(r"^#{1,6}\s*", "", line)
+    line = re.sub(r"^\s*[-*]\s*", "", line)
+    line = line.replace("**", "").replace("`", "")
+    if line.startswith("|") and line.endswith("|"):
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        line = " / ".join(cell for cell in cells if cell and set(cell) != {"-"})
+    return line.strip()
+
+
+def _summarize_meeting_note(content: str) -> str:
+    important_terms = ("ReMe", "智能问答", "AI 实验室", "技术委员会", "调薪", "期权", "晋升", "决议", "后续行动")
+    lines: list[str] = []
+    for raw_line in content.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped == "---" or set(stripped.replace("|", "").strip()) <= {"-"}:
+            continue
+        line = _clean_markdown_line(stripped)
+        if not line or set(line.replace(" ", "")) <= {"-"}:
+            continue
+        if len(lines) < 8 or any(term in line for term in important_terms):
+            if line not in lines:
+                lines.append(line)
+    if not lines:
+        return content.strip()
+    title = lines[0]
+    details = "；".join(lines[1:])
+    return f"{title}：{details}" if details else title
+
+
+def _format_meeting_notes_answer(evidences: list[Evidence]) -> str:
+    selected: dict[str, Evidence] = {}
+    for evidence in evidences:
+        if "meeting_notes/" not in evidence.source and "meeting_notes/" not in str(evidence.locator):
+            continue
+        key = evidence.locator or evidence.source
+        current = selected.get(key)
+        if current is None or evidence.data.get("recall") == "file":
+            selected[key] = evidence
+    summaries = [_summarize_meeting_note(item.content) for item in selected.values()]
+    if not summaries:
+        summaries = [item.content for item in evidences]
+    return "会议纪要要点：\n" + "\n".join(f"- {item}" for item in summaries) + f"\n\n{_source_block(evidences)}"
 
 
 def _as_date(value: str | None) -> date:
@@ -270,7 +317,7 @@ def format_fallback_answer(
     *,
     current_date: str | None = None,
 ) -> str:
-    if plan.needs_clarification and plan.clarification_question:
+    if plan.template == "unknown" and plan.needs_clarification and plan.clarification_question:
         return plan.clarification_question
     if not evidences:
         return "我没有在当前数据源中找到相关信息，因此不能确认答案。"
@@ -312,6 +359,8 @@ def format_fallback_answer(
         return "相关项目如下：\n" + "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
 
     if plan.template == "kb_search":
+        if any("meeting_notes/" in item.source or "meeting_notes/" in str(item.locator) for item in evidences):
+            return _format_meeting_notes_answer(evidences)
         lines = [item.content for item in evidences]
         return "\n".join(lines) + f"\n\n> 来源：{_sources(evidences)}"
 

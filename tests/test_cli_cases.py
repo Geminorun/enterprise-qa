@@ -174,6 +174,29 @@ def test_attendance_policy_check_wangwu_exceeds_penalty_line():
     assert "hr_policies.md" in answer
 
 
+def test_attendance_policy_check_runs_by_template_even_when_source_type_is_kb():
+    answer = answer_question(
+        "王五上个月迟到超过扣款线了吗？",
+        planner=FakePlanner(
+            QueryPlan(
+                "kb",
+                "attendance_policy_check",
+                {
+                    "employee_name": "王五",
+                    "status": "late",
+                    "date_range": {"start": "2026-02-01", "end": "2026-02-28"},
+                    "policy_topic": "迟到规则",
+                },
+            )
+        ),
+        polish_client=None,
+    )
+
+    assert "王五" in answer
+    assert "5 次" in answer
+    assert "50 元" in answer
+
+
 def test_attendance_policy_check_zhangsan_not_exceeds_penalty_line():
     answer = answer_question(
         "张三上个月迟到超过扣款线了吗？",
@@ -235,6 +258,25 @@ def test_t09_missing_employee():
     assert "没有" in answer or "未找到" in answer
 
 
+def test_executable_plan_ignores_erroneous_clarification_flag():
+    answer = answer_question(
+        "查一下 EMP-999",
+        planner=FakePlanner(
+            QueryPlan(
+                "db",
+                "employee_basic",
+                {"employee_id": "EMP-999", "field": "name"},
+                needs_clarification=True,
+                clarification_question="请问想查询哪个字段？",
+            )
+        ),
+        polish_client=None,
+    )
+
+    assert "请问想查询哪个字段" not in answer
+    assert "没有" in answer or "未找到" in answer
+
+
 def test_t10_recent_events():
     answer = answer_question(
         "最近有什么事？",
@@ -246,6 +288,21 @@ def test_t10_recent_events():
     assert "meeting_notes" in answer
     assert "PRJ-001" in answer
     assert "PRJ-002" in answer
+
+
+def test_meeting_notes_fallback_summarizes_instead_of_dumping_markdown():
+    answer = answer_question(
+        "3 月全员大会说了什么？",
+        planner=FakePlanner(QueryPlan("kb", "kb_search", {"query": "3 月全员大会说了什么"})),
+        polish_client=None,
+    )
+
+    assert "全员大会" in answer
+    assert "ReMe" in answer
+    assert "年度调薪" in answer
+    assert "技术同步会" not in answer
+    assert "# 2026 年 3 月全员大会纪要" not in answer
+    assert len(answer) < 1200
 
 
 def test_recent_events_runs_by_template_when_planned_as_db():

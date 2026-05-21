@@ -43,6 +43,7 @@ template 参数约束：
 
 字段映射示例：
 - “张三的部门是什么？” -> {"source_type":"db","template":"employee_basic","params":{"employee_name":"张三","field":"department"},"output_mode":"summary"}
+- “查一下 EMP-999” -> {"source_type":"db","template":"employee_basic","params":{"employee_id":"EMP-999","field":"name"},"output_mode":"summary","needs_clarification":false,"clarification_question":null}
 - “CEO 的邮箱是多少？” -> {"source_type":"db","template":"employee_basic","params":{"employee_name":"CEO","field":"email"},"output_mode":"summary"}
 - “李四的上级是谁？” -> {"source_type":"db","template":"employee_manager","params":{"employee_name":"李四"},"output_mode":"summary"}
 - “张三的直属上级的邮箱是多少？” -> {"source_type":"db","template":"employee_manager","params":{"employee_name":"张三"},"output_mode":"summary"}

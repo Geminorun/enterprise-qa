@@ -58,6 +58,23 @@ def _split_markdown(path: Path) -> list[tuple[str, str]]:
     return chunks
 
 
+def _is_meeting_note(path: Path) -> bool:
+    return "meeting_notes" in path.parts
+
+
+def _requires_meeting_identity_match(query: str) -> bool:
+    return any(term in query for term in ("全员大会", "技术同步会", "同步会"))
+
+
+def _meeting_identity_matches_query(query: str, relative: str, chunks: list[tuple[str, str]]) -> bool:
+    identity = f"{relative} {' '.join(heading for heading, _ in chunks[:2])}"
+    for item in CHINESE_PATTERN.findall(query):
+        for size in range(min(len(item), 6), 3, -1):
+            if any(ngram in identity for ngram in _ngrams(item, size)):
+                return True
+    return False
+
+
 def search_knowledge(root_path: Path, query: str, *, limit: int = 3) -> list[Evidence]:
     query_tokens = _tokens(query)
     if not query_tokens:
@@ -69,6 +86,13 @@ def search_knowledge(root_path: Path, query: str, *, limit: int = 3) -> list[Evi
     for path in sorted(root_path.rglob("*.md")):
         relative = path.relative_to(root_path).as_posix()
         path_chunks = _split_markdown(path)
+        is_meeting_note = _is_meeting_note(path)
+        if (
+            is_meeting_note
+            and _requires_meeting_identity_match(query)
+            and not _meeting_identity_matches_query(query, relative, path_chunks)
+        ):
+            continue
         local_scored: list[tuple[int, str, Evidence]] = []
         for heading, content in path_chunks:
             text = f"{relative} {heading} {content}"
@@ -92,7 +116,7 @@ def search_knowledge(root_path: Path, query: str, *, limit: int = 3) -> list[Evi
                         ),
                     )
                 )
-        if relative.startswith("meeting_notes/") and local_scored:
+        if is_meeting_note and local_scored:
             best_score = max(item[0] for item in local_scored)
             whole_file = path.read_text(encoding="utf-8").strip()
             scored.append(
