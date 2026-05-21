@@ -218,7 +218,7 @@ LLM prompt 包含：
 - 参数类型必须匹配模板 schema。
 - `performance_summary.quarter` 会把 `Q1`、`Q2`、`第一季度`、`第二季度` 等表达归一化为 `1-4`，非法季度会被拒绝。
 - 项目类 `status` 会把 `暂停`、`paused`、`on hold`、`on_hold` 归一化为 `on_hold`，并统一 `在研/进行中/active`、`规划/planning`、`完成/completed` 等表达。
-- 员工类 `status` 会把 `离职`、`resigned` 归一化为 `resigned`，把 `在职`、`active` 归一化为 `active`。
+- 员工类 `status` 会把 `离职`、`resigned` 归一化为 `resigned`，把 `休假`、`请假`、`on_leave` 归一化为 `on_leave`，把 `在职`、`active` 归一化为 `active`。
 - 日期范围必须有效且有边界。
 - 字段名必须来自白名单。
 - 不直接暴露 `manager_id` 等原始敏感字段；上级类答案需要解析成人名。
@@ -276,7 +276,7 @@ FROM employees e
 JOIN project_members pm ON pm.employee_id = e.employee_id
 JOIN projects p ON p.project_id = pm.project_id
 WHERE e.name = ? AND e.status = 'active'
--- 如果提供项目 status，还会追加 AND p.status = ?
+-- 如果提供项目 status，还会追加 AND p.status IN (...)
 ORDER BY p.project_id
 ```
 

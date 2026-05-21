@@ -65,6 +65,12 @@ EMPLOYEE_STATUS_ALIASES = {
     "離職": "resigned",
     "已离职": "resigned",
     "已離職": "resigned",
+    "on_leave": "on_leave",
+    "on leave": "on_leave",
+    "休假": "on_leave",
+    "请假": "on_leave",
+    "請假": "on_leave",
+    "假期": "on_leave",
 }
 PROJECT_STATUS_TEMPLATES = {"department_projects", "employee_projects", "recent_events"}
 PROJECT_STATUS_ALIASES = {

@@ -116,6 +116,19 @@ def test_normalizes_employee_status_aliases():
     assert validated.params["status"] == "resigned"
 
 
+def test_normalizes_employee_on_leave_status_aliases():
+    plan = QueryPlan(
+        source_type="db",
+        template="department_members",
+        params={"department": "研发部", "status": "休假"},
+        output_mode="list",
+    )
+
+    validated = validate_plan(plan)
+
+    assert validated.params["status"] == "on_leave"
+
+
 def test_accepts_promotion_eligibility_with_employee_id():
     plan = QueryPlan(
         source_type="db",

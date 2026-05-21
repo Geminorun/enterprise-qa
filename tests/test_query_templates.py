@@ -37,6 +37,16 @@ def test_employee_projects_filters_by_project_status():
     assert project_ids == {"PRJ-001", "PRJ-003"}
 
 
+def test_employee_projects_filters_by_project_status_list():
+    evidence = execute_db_plan(
+        DB_PATH,
+        QueryPlan("db", "employee_projects", {"employee_name": "张三", "status": ["active", "planning"]}),
+    )
+    project_ids = {item.data["project_id"] for item in evidence}
+
+    assert project_ids == {"PRJ-001", "PRJ-002", "PRJ-003"}
+
+
 def test_department_members_filters_by_employee_status():
     evidence = execute_db_plan(DB_PATH, QueryPlan("db", "department_members", {"department": "研发部", "status": "resigned"}))
     members = evidence[0].data["members"]

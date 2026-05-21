@@ -27,8 +27,8 @@ promotion_eligibility, kb_search, recent_events, unknown
 template 参数约束：
 - employee_basic params: employee_name 或 employee_id 必填；field 必填且只能是 department/email/level/hire_date/status/name。
 - employee_manager params: employee_name 或 employee_id 必填。
-- department_members params: department 必填；status 可选，员工状态优先使用 active/resigned；“离职”映射为 resigned。
-- employee_projects params: employee_name 或 employee_id 必填；status 可选，项目状态优先使用 active/planning/completed/on_hold。
+- department_members params: department 必填；status 可选，员工状态优先使用 active/on_leave/resigned；“离职”映射为 resigned，“休假/请假”映射为 on_leave。
+- employee_projects params: employee_name 或 employee_id 必填；status 可选，项目状态优先使用 active/planning/completed/on_hold，支持单个状态或状态数组。
 - department_projects params: department 可选；status 可选，优先使用 active/planning/completed/on_hold，支持单个状态或状态数组。
 - project_members params: project_id 或 project_name 必填。
 - attendance_stats params: employee_name 或 employee_id 必填；status 必填；date_range 可选，格式 {"start":"YYYY-MM-DD","end":"YYYY-MM-DD"}。

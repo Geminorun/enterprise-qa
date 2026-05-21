@@ -120,18 +120,26 @@ def _department_members(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evide
 def _employee_projects(conn: sqlite3.Connection, plan: QueryPlan) -> list[Evidence]:
     condition, value = _employee_filter(plan.params)
     status = plan.params.get("status")
-    status_clause = "AND p.status = ?" if status else ""
-    args: tuple[Any, ...] = (value, status) if status else (value,)
+    filters = []
+    args: list[Any] = [value]
+    if status:
+        if isinstance(status, (list, tuple, set)):
+            statuses = [str(item) for item in status]
+        else:
+            statuses = [str(status)]
+        placeholders = ", ".join("?" for _ in statuses)
+        filters.append(f"AND p.status IN ({placeholders})")
+        args.extend(statuses)
     rows = conn.execute(
         f"""
         SELECT e.employee_id, e.name AS employee_name, p.project_id, p.name, p.status, pm.role, pm.join_date
         FROM employees e
         JOIN project_members pm ON pm.employee_id = e.employee_id
         JOIN projects p ON p.project_id = pm.project_id
-        WHERE {condition} AND e.status = 'active' {status_clause}
+        WHERE {condition} AND e.status = 'active' {" ".join(filters)}
         ORDER BY p.project_id
         """,
-        args,
+        tuple(args),
     ).fetchall()
     return [
         Evidence(
